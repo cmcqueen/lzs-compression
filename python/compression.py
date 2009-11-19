@@ -8,6 +8,7 @@ Aiming to be suitable for embedded systems
 from __future__ import print_function
 
 from collections import defaultdict
+from construct.macros import BitField
 
 
 class BitFieldQueue(object):
@@ -341,6 +342,28 @@ class LengthCoder6(object):
         bit_field_queue.pop(width)
         return length
 
+class LengthCoder7(object):
+    MAX_INITIAL_LEN = 16
+    MAX_CONTINUED_LEN = 15
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def encode(length):
+        """
+        Encode a length into a variable-bit-width value.
+        Returns a BitFieldQueue that encodes the length.
+        """
+        return BitFieldQueue(length - 2, 4)
+    @staticmethod
+    def decode(bit_field_queue):
+        """
+        Reads a variable-bit-width value from a BitFieldQueue.
+        Returns a decoded length. The value is removed from the BitFieldQueue.
+        """
+        return bit_field_queue.pop(4) + 2
+
 class LZCMCoder(object):
     MAX_DICT_LEN = 15
     MAX_OFFSET = (2**11 - 1)
@@ -542,20 +565,28 @@ def print_binary(in_string):
         print()
 
 if 1:
+    strings = [
+u"""Return a string containing a printable representation of an object. For many types, this function makes an attempt to return a string that would yield an object with the same value when passed to eval(), otherwise the representation is a string enclosed in angle brackets that contains the name of the type of the object together with additional information often including the name and address of the object. A class can control what this function returns for its instances by defining a __repr__() method.""",
+
+u"""If encoding and/or errors are given, unicode() will decode the object which can either be an 8-bit string or a character buffer using the codec for encoding. The encoding parameter is a string giving the name of an encoding; if the encoding is not known, LookupError is raised. Error handling is done according to errors; this specifies the treatment of characters which are invalid in the input encoding. If errors is 'strict' (the default), a ValueError is raised on errors, while a value of 'ignore' causes errors to be silently ignored, and a value of 'replace' causes the official Unicode replacement character, U+FFFD, to be used to replace input characters which cannot be decoded. See also the codecs module. If no optional parameters are given, unicode() will mimic the behaviour of str() except that it returns Unicode strings instead of 8-bit strings. More precisely, if object is a Unicode string or subclass it will return that Unicode string without any additional decoding applied.
+For objects which provide a __unicode__() method, it will call this method without arguments to create a Unicode string. For all other objects, the 8-bit string version or representation is requested and then converted to a Unicode string using the codec for the default encoding in 'strict' mode.
+For more information on Unicode strings see Sequence Types — str, unicode, list, tuple, buffer, xrange which describes sequence functionality (Unicode strings are sequences), and also the string-specific methods described in the String Methods section. To output formatted strings use template strings or the % operator described in the String Formatting Operations section. In addition see the String Services section. See also str().
+New in version 2.0.
+Changed in version 2.2: Support for __unicode__() added.vars([object])
+Without an argument, act like locals().
+With a module, class or class instance object as argument (or anything else that has a __dict__ attribute), return that attribute.
+Note
+The returned dictionary should not be modified: the effects on the corresponding symbol table are undefined. [3]
+xrange([start], stop[, step])¶
+This function is very similar to range(), but returns an “xrange object” instead of a list. This is an opaque sequence type which yields the same values as the corresponding list, without actually storing them all simultaneously. The advantage of xrange() over range() is minimal (since xrange() still has to create the values when asked for them) except when a very large range is used on a memory-starved machine or when all of the range’s elements are never used (such as when the loop is usually terminated with break).""",
+
+u"That Sam-I-am, that Sam-I-am, I do not like that Sam-I-am.000000000000000000",
+]
+    # Choose a string from the above
+    original_string = strings[0]
+    # Make the compression coder, with a chosen length coder
     LZCM = LZCMCoder(LengthCoder4)
-#    original_string = u"""Return a string containing a printable representation of an object. For many types, this function makes an attempt to return a string that would yield an object with the same value when passed to eval(), otherwise the representation is a string enclosed in angle brackets that contains the name of the type of the object together with additional information often including the name and address of the object. A class can control what this function returns for its instances by defining a __repr__() method."""
-    original_string = u"""If encoding and/or errors are given, unicode() will decode the object which can either be an 8-bit string or a character buffer using the codec for encoding. The encoding parameter is a string giving the name of an encoding; if the encoding is not known, LookupError is raised. Error handling is done according to errors; this specifies the treatment of characters which are invalid in the input encoding. If errors is 'strict' (the default), a ValueError is raised on errors, while a value of 'ignore' causes errors to be silently ignored, and a value of 'replace' causes the official Unicode replacement character, U+FFFD, to be used to replace input characters which cannot be decoded. See also the codecs module. If no optional parameters are given, unicode() will mimic the behaviour of str() except that it returns Unicode strings instead of 8-bit strings. More precisely, if object is a Unicode string or subclass it will return that Unicode string without any additional decoding applied.
-        For objects which provide a __unicode__() method, it will call this method without arguments to create a Unicode string. For all other objects, the 8-bit string version or representation is requested and then converted to a Unicode string using the codec for the default encoding in 'strict' mode.
-        For more information on Unicode strings see Sequence Types — str, unicode, list, tuple, buffer, xrange which describes sequence functionality (Unicode strings are sequences), and also the string-specific methods described in the String Methods section. To output formatted strings use template strings or the % operator described in the String Formatting Operations section. In addition see the String Services section. See also str().
-        New in version 2.0.
-        Changed in version 2.2: Support for __unicode__() added.vars([object])
-        Without an argument, act like locals().
-        With a module, class or class instance object as argument (or anything else that has a __dict__ attribute), return that attribute.
-        Note
-        The returned dictionary should not be modified: the effects on the corresponding symbol table are undefined. [3]
-        xrange([start], stop[, step])¶
-        This function is very similar to range(), but returns an “xrange object” instead of a list. This is an opaque sequence type which yields the same values as the corresponding list, without actually storing them all simultaneously. The advantage of xrange() over range() is minimal (since xrange() still has to create the values when asked for them) except when a very large range is used on a memory-starved machine or when all of the range’s elements are never used (such as when the loop is usually terminated with break)."""
-#    original_string = u"That Sam-I-am, that Sam-I-am, I do not like that Sam-I-am.000000000000000000"
+
     print(original_string)
     original_data = original_string.encode('utf-8')
     compressed_data = LZCM.compress(original_data)
