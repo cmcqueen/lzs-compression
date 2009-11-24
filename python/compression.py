@@ -9,7 +9,6 @@ from __future__ import print_function
 
 import sys
 from collections import defaultdict
-from construct.macros import BitField
 
 
 class BitFieldQueue(object):
