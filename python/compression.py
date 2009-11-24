@@ -7,6 +7,7 @@ Aiming to be suitable for embedded systems
 
 from __future__ import print_function
 
+import sys
 from collections import defaultdict
 from construct.macros import BitField
 
@@ -42,6 +43,132 @@ class BitFieldQueue(object):
         return return_value
     def __str__(self):
         return u"{0}, width {1}".format(self.value, self.width)
+
+class EndMarker(object):
+    pass
+
+class OffsetCoder1(object):
+    def __init__(self, short_bits, long_bits):
+        self.short_bits = short_bits
+        self.long_bits = long_bits
+        self.max_short_offset = (2**self.short_bits) - 1
+        self.max_long_offset = (2**self.long_bits) - 1
+        self.max_offset = self.max_long_offset
+        self.MAX_OFFSET = self.max_long_offset
+
+    def encode(self, offset):
+        """
+        Encode an offset into a variable-bit-width value.
+        Returns a BitFieldQueue that encodes the offset.
+        """
+        if offset == EndMarker:
+            offset = 0
+        if offset <= self.max_short_offset:
+            # Short offset
+            bit_field = BitFieldQueue(1, 1)
+            bit_field.append(BitFieldQueue(offset, self.short_bits))
+            return bit_field
+        elif offset <= self.max_long_offset:
+            # Long offset
+            bit_field = BitFieldQueue(0, 1)
+            bit_field.append(BitFieldQueue(offset, self.long_bits))
+            return bit_field
+        else:
+            raise Exception(u"Offset {0} is too long to encode".format(offset))
+
+    def decode(self, bit_field_queue):
+        """
+        Reads a variable-bit-width value from a BitFieldQueue.
+        Returns a decoded offset. The value is removed from the BitFieldQueue.
+        """
+        if bit_field_queue.pop(1):
+            # Short offset
+            offset = bit_field_queue.pop(self.short_bits)
+            if offset == 0:
+                offset = EndMarker
+            return offset
+        else:
+            # Long offset
+            return bit_field_queue.pop(self.long_bits)
+
+
+class OffsetCoder2(object):
+    def __init__(self, num_bits):
+        self.num_bits = num_bits
+        self.max_offset = (2**self.num_bits) - 1
+        self.MAX_OFFSET = self.max_offset
+
+    def encode(self, offset):
+        """
+        Encode an offset into a variable-bit-width value.
+        Returns a BitFieldQueue that encodes the offset.
+        """
+        if offset == EndMarker:
+            offset = 0
+        if offset <= self.max_offset:
+            # Long offset
+            return BitFieldQueue(offset, self.num_bits)
+        else:
+            raise Exception(u"Offset {0} is too long to encode".format(offset))
+
+    def decode(self, bit_field_queue):
+        """
+        Reads a variable-bit-width value from a BitFieldQueue.
+        Returns a decoded offset. The value is removed from the BitFieldQueue.
+        """
+        offset = bit_field_queue.pop(self.num_bits)
+        if offset == 0:
+            offset = EndMarker
+        return offset
+
+
+class OffsetCoder2b(object):
+    SHORT_BITS = 7
+    LONG_BITS = 10
+    MAX_SHORT_OFFSET = (2**SHORT_BITS) - 1
+    MAX_LONG_OFFSET = (2**LONG_BITS) - 1
+    MAX_OFFSET = MAX_LONG_OFFSET
+    END_MARKER_VALUE = 0
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def encode(offset):
+        """
+        Encode an offset into a variable-bit-width value.
+        Returns a BitFieldQueue that encodes the offset.
+        """
+        if offset == EndMarker:
+            offset = 0
+        if offset <= OffsetCoder2.MAX_SHORT_OFFSET:
+            # Short offset
+            bit_field = BitFieldQueue(1, 1)
+            bit_field.append(BitFieldQueue(offset, OffsetCoder2.SHORT_BITS))
+            return bit_field
+        elif offset <= OffsetCoder2.MAX_LONG_OFFSET:
+            # Long offset
+            bit_field = BitFieldQueue(0, 1)
+            bit_field.append(BitFieldQueue(offset, OffsetCoder2.LONG_BITS))
+            return bit_field
+        else:
+            raise Exception(u"Offset {0} is too long to encode".format(offset))
+
+    @staticmethod
+    def decode(bit_field_queue):
+        """
+        Reads a variable-bit-width value from a BitFieldQueue.
+        Returns a decoded offset. The value is removed from the BitFieldQueue.
+        """
+        if bit_field_queue.pop(1):
+            # Short offset
+            offset = bit_field_queue.pop(OffsetCoder2.SHORT_BITS)
+            if offset == 0:
+                offset = EndMarker
+            return offset
+        else:
+            # Long offset
+            return bit_field_queue.pop(OffsetCoder2.LONG_BITS)
 
 class LengthCoder1(object):
     MAX_INITIAL_LEN = 8
@@ -366,10 +493,9 @@ class LengthCoder7(object):
 
 class LZCMCoder(object):
     MAX_DICT_LEN = 15
-    MAX_OFFSET = (2**11 - 1)
-    MAX_SHORT_OFFSET = (2**7 - 1)
 
-    def __init__(self, length_coder):
+    def __init__(self, offset_coder, length_coder):
+        self.offset_coder = offset_coder
         self.length_coder = length_coder
         self.max_dict_len = min(LZCMCoder.MAX_DICT_LEN, self.length_coder.MAX_INITIAL_LEN)
 #        print(u"self.max_dict_len = {0}".format(self.max_dict_len))
@@ -383,8 +509,8 @@ class LZCMCoder(object):
                 if len(fragment) == match_len:
                     match_dict[fragment].append(offset)
             # Delete old fragments from dictionary
-            if offset >= LZCMCoder.MAX_OFFSET:
-                old_offset = offset - LZCMCoder.MAX_OFFSET
+            if offset >= self.offset_coder.MAX_OFFSET:
+                old_offset = offset - self.offset_coder.MAX_OFFSET
                 for match_len in range(2, self.max_dict_len + 1):
                     fragment = in_data[old_offset : (old_offset + match_len)]
                     if len(fragment) == match_len:
@@ -454,20 +580,13 @@ class LZCMCoder(object):
                 else:
                     bit_field_queue.append(BitFieldQueue(1,1))
                     offset = -offset
-                    if offset <= LZCMCoder.MAX_SHORT_OFFSET:
-                        bit_field_queue.append(BitFieldQueue(1,1))
-                        bit_field_queue.append(BitFieldQueue(offset, 7))
-                    elif offset <= LZCMCoder.MAX_OFFSET:
-                        bit_field_queue.append(BitFieldQueue(0,1))
-                        bit_field_queue.append(BitFieldQueue(offset, 11))
-                    else:
-                        raise Exception(u"Offset {0} is too big".format(offset))
+                    bit_field_queue.append(self.offset_coder.encode(offset))
                     bit_field_queue.append(self.length_coder.encode(length))
             _do_output()
 
         # Output an end-marker
-        bit_field_queue.append(BitFieldQueue(0b11,2))
-        bit_field_queue.append(BitFieldQueue(0,7))
+        bit_field_queue.append(BitFieldQueue(0b1,1))
+        bit_field_queue.append(self.offset_coder.encode(EndMarker))
         # Calculate number of bits of padding needed to make a complete byte
         needed_pad = 7 - ((bit_field_queue.width + 7) % 8)
         bit_field_queue.append(BitFieldQueue(0,needed_pad))
@@ -499,18 +618,9 @@ class LZCMCoder(object):
                 char = chr(bit_field_queue.pop(8))
                 out_data.append(char)
             else:
-                # Offset, Length pair 
-                offset_type = bit_field_queue.pop(1)
-                end_token = False
-                if offset_type == 0:
-                    _load_input()
-                    offset = bit_field_queue.pop(11)
-                else:
-                    offset = bit_field_queue.pop(7)
-                    if offset == 0:
-                        # End token
-                        end_token = True
-                if not end_token:
+                # Offset, Length pair
+                offset = self.offset_coder.decode(bit_field_queue)
+                if offset != EndMarker: 
                     offset = -offset
                     length = self.length_coder.decode(bit_field_queue)
                     out_data.append((offset, length))
@@ -543,19 +653,6 @@ class LZCMCoder(object):
         #return "".join(out_data)
         return out_data
 
-if 0:
-    test = BitFieldQueue(2, 2)
-    test.append(BitFieldQueue(2,2))
-    test.append(BitFieldQueue(2,2))
-    test.append(BitFieldQueue(2,2))
-    test.append(BitFieldQueue(2,2))
-    test.append(BitFieldQueue(2,2))
-    test.append(BitFieldQueue(2,2))
-    print(test)
-    print(test.pop(4))
-    print(test.pop(4))
-    print(test.pop(4))
-    print(test)
 
 def print_binary(in_string):
     for char in in_string:
@@ -564,8 +661,60 @@ def print_binary(in_string):
             print(1 if (value & (2**i)) else 0, sep=u'', end=u'')
         print()
 
-if 1:
-    strings = [
+
+def file_chars_iter(file_object, chunksize=1024):
+    while True:
+        chunk = file_object.read(chunksize)
+        if not chunk:
+            break
+        for b in chunk:
+            yield b
+
+
+def test_compression(in_data):
+    # Make the compression coder, with a chosen length coder
+    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+
+#        print(original_string)
+    original_data = in_data
+    compressed_data = LZCM.compress(original_data)
+#        print(compressed_data)
+#        print(u"(length = {0})".format(len(compressed_data)))
+    encoded = LZCM.encode(compressed_data)
+#        print_binary(encoded)
+    print(u"length of encoded data = {0}".format(len(encoded)))
+
+    decoded = LZCM.decode(encoded)
+#        print(decoded)
+#        decompressed_data = LZCM.decompress(compressed_data)
+    decompressed_data = LZCM.decompress(decoded)
+#        print(decompressed_data.decode('utf-8'))
+    print(u"(length = {0})".format(len(decompressed_data)))
+
+    if decompressed_data == original_data:
+        print(u"Compressed data matches")
+    else:
+        print(u"Compressed data MISMATCH!")
+    print(u"Compressed size is {0:0.0f}%".format(float(len(encoded))/len(decompressed_data)*100))
+
+
+def main():
+    if 0:
+        test = BitFieldQueue(2, 2)
+        test.append(BitFieldQueue(2,2))
+        test.append(BitFieldQueue(2,2))
+        test.append(BitFieldQueue(2,2))
+        test.append(BitFieldQueue(2,2))
+        test.append(BitFieldQueue(2,2))
+        test.append(BitFieldQueue(2,2))
+        print(test)
+        print(test.pop(4))
+        print(test.pop(4))
+        print(test.pop(4))
+        print(test)
+    
+    if 0:
+        strings = [
 u"""Return a string containing a printable representation of an object. For many types, this function makes an attempt to return a string that would yield an object with the same value when passed to eval(), otherwise the representation is a string enclosed in angle brackets that contains the name of the type of the object together with additional information often including the name and address of the object. A class can control what this function returns for its instances by defining a __repr__() method.""",
 
 u"""If encoding and/or errors are given, unicode() will decode the object which can either be an 8-bit string or a character buffer using the codec for encoding. The encoding parameter is a string giving the name of an encoding; if the encoding is not known, LookupError is raised. Error handling is done according to errors; this specifies the treatment of characters which are invalid in the input encoding. If errors is 'strict' (the default), a ValueError is raised on errors, while a value of 'ignore' causes errors to be silently ignored, and a value of 'replace' causes the official Unicode replacement character, U+FFFD, to be used to replace input characters which cannot be decoded. See also the codecs module. If no optional parameters are given, unicode() will mimic the behaviour of str() except that it returns Unicode strings instead of 8-bit strings. More precisely, if object is a Unicode string or subclass it will return that Unicode string without any additional decoding applied.
@@ -582,29 +731,16 @@ This function is very similar to range(), but returns an “xrange object” ins
 
 u"That Sam-I-am, that Sam-I-am, I do not like that Sam-I-am.000000000000000000",
 ]
-    # Choose a string from the above
-    original_string = strings[0]
-    # Make the compression coder, with a chosen length coder
-    LZCM = LZCMCoder(LengthCoder4)
 
-    print(original_string)
-    original_data = original_string.encode('utf-8')
-    compressed_data = LZCM.compress(original_data)
-    print(compressed_data)
-#    print(u"(length = {0})".format(len(compressed_data)))
-    encoded = LZCM.encode(compressed_data)
-#    print_binary(encoded)
-    print(u"length of encoded data = {0}".format(len(encoded)))
+        # Choose a string from the above
+        original_string = strings[1]
+        original_data = original_string.encode('utf-8')
+        test_compression(original_data)
 
-    decoded = LZCM.decode(encoded)
-    print(decoded)
-#    decompressed_data = LZCM.decompress(compressed_data)
-    decompressed_data = LZCM.decompress(decoded)
-    print(decompressed_data.decode('utf-8'))
-    print(u"(length = {0})".format(len(decompressed_data)))
+    if 1:
+        with open(sys.argv[1], "rb") as f:
+            in_data = f.read()
+            test_compression(in_data)
 
-    if decompressed_data == original_data:
-        print(u"Compressed data matches")
-    else:
-        print(u"Compressed data MISMATCH!")
-    print(u"Compressed size is {0:0.0f}%".format(float(len(encoded))/len(decompressed_data)*100))
+if __name__ == '__main__':
+    main()
