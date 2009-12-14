@@ -760,6 +760,14 @@ def print_binary(in_string):
             print(1 if (value & (2**i)) else 0, sep=u'', end=u'')
         print()
 
+def print_hex_list(in_string):
+    count = 0
+    for char in in_string:
+        if (count % 8) == 0:
+            print()
+        print("0x{0:02X}, ".format(ord(char)), end='')
+        count += 1
+    print()
 
 def file_chars_iter(file_object, chunksize=1024):
     while True:
@@ -780,7 +788,8 @@ def test_compression(in_data):
 #    print(compressed_data)
 #    print(u"(length = {0})".format(len(compressed_data)))
     encoded = LZCM.encode(compressed_data)
-    print_binary(encoded)
+#    print_binary(encoded)
+    print_hex_list(encoded)
     print(u"length of encoded data = {0}".format(len(encoded)))
 
     decoded = LZCM.decode(encoded)
