@@ -30,7 +30,7 @@ static const uint8_t lengthDecodeTable[] =
 //#define DEBUG(X)    printf X
 #define DEBUG(X)
 
-void decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
+size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
 {
     const uint8_t     * inPtr;
     uint8_t           * outPtr;
@@ -171,6 +171,7 @@ void decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_
                 {
                     *outPtr = *(outPtr - offset);
                     ++outPtr;
+                    ++outCount;
                 }
                 if (length != 15u)
                 {
@@ -180,6 +181,8 @@ void decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_
                 break;
         }
     }
+
+    return outCount;
 }
 
 
@@ -230,7 +233,12 @@ int main()
             0x32, 0x0B, 0xB0, 0x00,
         };
     uint8_t out_buffer[1000];
-    decompress(out_buffer, sizeof(out_buffer), compressed_data, sizeof(compressed_data));
+    size_t  out_length;
+
+
+    memset(out_buffer, 'A', sizeof(out_buffer));
+    out_length = decompress(out_buffer, sizeof(out_buffer), compressed_data, sizeof(compressed_data));
+    out_buffer[out_length] = 0;
     printf("%s", out_buffer);
     return 0;
 }
