@@ -636,11 +636,14 @@ int main(int argc, char **argv)
     decompress_params.outLength = sizeof(out_buffer) - 1;
     out_length = decompress_incremental(&decompress_params);
     // Add string zero termination
-    out_buffer[out_length] = 0;
+    *decompress_params.outPtr = 0;
     printf("%s", out_buffer);
-#elif 1
+#elif 0
     // Decompress bounded by input buffer size
     decompress_params.inPtr = compressed_data;
+    decompress_params.outPtr = out_buffer;
+    // out buffer length is '-1' to allow for string zero termination
+    decompress_params.outLength = sizeof(out_buffer) - 1;
     while (1)
     {
         decompress_params.inLength = compressed_data + sizeof(compressed_data) - decompress_params.inPtr;
@@ -649,14 +652,37 @@ int main(int argc, char **argv)
         if (decompress_params.inLength == 0)
             break;
 
-        decompress_params.outPtr = out_buffer;
-        // out buffer length is '-1' to allow for string zero termination
-        decompress_params.outLength = sizeof(out_buffer) - 1;
         out_length = decompress_incremental(&decompress_params);
         // Add string zero termination
-        out_buffer[out_length] = 0;
-        printf("%s\n", out_buffer);
+        *decompress_params.outPtr = 0;
+        printf("%s\n", decompress_params.outPtr - out_length);
     }
+    // Add string zero termination
+    *decompress_params.outPtr = 0;
+    printf("%s", out_buffer);
+#elif 1
+    // Decompress bounded by output buffer size
+    decompress_params.inPtr = compressed_data;
+    decompress_params.inLength = sizeof(compressed_data);
+    decompress_params.outPtr = out_buffer;
+    // out buffer length is '-1' to allow for string zero termination
+    decompress_params.outLength = sizeof(out_buffer) - 1;
+    while (1)
+    {
+        decompress_params.outLength = out_buffer + sizeof(out_buffer) - decompress_params.outPtr;
+        if (decompress_params.outLength > 1u)
+            decompress_params.outLength = 1u;
+        if (decompress_params.inLength == 0)
+            break;
+
+        out_length = decompress_incremental(&decompress_params);
+        // Add string zero termination
+        *decompress_params.outPtr = 0;
+        printf("%s\n", decompress_params.outPtr - out_length);
+    }
+    // Add string zero termination
+    *decompress_params.outPtr = 0;
+    printf("%s", out_buffer);
 #endif
 #endif
 
