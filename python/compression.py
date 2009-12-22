@@ -215,6 +215,7 @@ class LengthCoder1(object):
     """
     This is the standard LZS coding of length.
     """
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 8
     MAX_CONTINUED_LEN = 15
 
@@ -265,6 +266,7 @@ class LengthCoder1(object):
         return length
 
 class LengthCoder2(object):
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 7
     MAX_CONTINUED_LEN = 15
 
@@ -314,6 +316,7 @@ class LengthCoder2(object):
         return length
 
 class LengthCoder3(object):
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 6
     MAX_CONTINUED_LEN = 15
 
@@ -362,6 +365,7 @@ class LengthCoder3(object):
         return length
 
 class LengthCoder4(object):
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 9
     MAX_CONTINUED_LEN = 15
 
@@ -413,6 +417,7 @@ class LengthCoder4(object):
         return length
 
 class LengthCoder5(object):
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 7
     MAX_CONTINUED_LEN = 15
 
@@ -462,6 +467,7 @@ class LengthCoder5(object):
         return length
 
 class LengthCoder6(object):
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 10
     MAX_CONTINUED_LEN = 15
 
@@ -514,6 +520,7 @@ class LengthCoder6(object):
         return length
 
 class LengthCoder7(object):
+    MIN_INITIAL_LEN = 2
     MAX_INITIAL_LEN = 16
     MAX_CONTINUED_LEN = 15
 
@@ -535,6 +542,29 @@ class LengthCoder7(object):
         """
         return bit_field_queue.pop(4) + 2
 
+class LengthCoder8(object):
+    MIN_INITIAL_LEN = 3
+    MAX_INITIAL_LEN = 16
+    MAX_CONTINUED_LEN = None
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def encode(length):
+        """
+        Encode a length into a variable-bit-width value.
+        Returns a BitFieldQueue that encodes the length.
+        """
+        return BitFieldQueue(length - LengthCoder8.MIN_INITIAL_LEN, 4)
+    @staticmethod
+    def decode(bit_field_queue):
+        """
+        Reads a variable-bit-width value from a BitFieldQueue.
+        Returns a decoded length. The value is removed from the BitFieldQueue.
+        """
+        return bit_field_queue.pop(4) + LengthCoder8.MIN_INITIAL_LEN
+    
 class LZCMCoder(object):
     MAX_DICT_SEARCH_LEN = 15
 
@@ -549,14 +579,14 @@ class LZCMCoder(object):
 
         def add_to_match_dict(offset):
             # Add fragments of each length to dictionary
-            for match_len in range(2, self.max_dict_search_len + 1):
+            for match_len in range(self.length_coder.MIN_INITIAL_LEN, self.max_dict_search_len + 1):
                 fragment = in_data[offset : (offset + match_len)]
                 if len(fragment) == match_len:
                     match_dict[fragment].append(offset)
             # Delete old fragments from dictionary
             if offset >= self.offset_coder.MAX_OFFSET:
                 old_offset = offset - self.offset_coder.MAX_OFFSET
-                for match_len in range(2, self.max_dict_search_len + 1):
+                for match_len in range(self.length_coder.MIN_INITIAL_LEN, self.max_dict_search_len + 1):
                     fragment = in_data[old_offset : (old_offset + match_len)]
                     if len(fragment) == match_len:
                         match_dict[fragment].pop(0)
@@ -570,7 +600,7 @@ class LZCMCoder(object):
         while in_data_offset < len(in_data):
             # Try to find previous match
             found = False
-            for match_len in range(self.max_dict_search_len, 1, -1):
+            for match_len in range(self.max_dict_search_len, self.length_coder.MIN_INITIAL_LEN - 1, -1):
                 fragment = in_data[in_data_offset : (in_data_offset + match_len)]
                 if len(fragment) == match_len and fragment in match_dict:
                     # We found a match in the dictionary, of length match_len
@@ -588,7 +618,10 @@ class LZCMCoder(object):
                     match_offset += match_len
 
                     # Continue match if possible
-                    continue_match_found = (match_len == self.length_coder.MAX_INITIAL_LEN)
+                    continue_match_found =  (
+                                                (match_len == self.length_coder.MAX_INITIAL_LEN) and
+                                                (self.length_coder.MAX_CONTINUED_LEN != None)
+                                            )
                     while continue_match_found:
                         for match_len in range(self.length_coder.MAX_CONTINUED_LEN, -1, -1):
                             fragment = in_data[in_data_offset : (in_data_offset + match_len)]
@@ -669,7 +702,8 @@ class LZCMCoder(object):
                     offset = -offset
                     length = self.length_coder.decode(bit_field_queue)
                     out_data.append((offset, length))
-                    if length == self.length_coder.MAX_INITIAL_LEN:
+                    if ((length == self.length_coder.MAX_INITIAL_LEN) and
+                        (self.length_coder.MAX_CONTINUED_LEN != None)):
                         while True:
                             _load_input()
                             length = bit_field_queue.pop(4)
@@ -711,7 +745,8 @@ class LZCMCoder(object):
                     offset = -offset
                     length = self.length_coder.decode(bit_field_queue)
                     yield (offset, length)
-                    if length == self.length_coder.MAX_INITIAL_LEN:
+                    if ((length == self.length_coder.MAX_INITIAL_LEN) and
+                        (self.length_coder.MAX_CONTINUED_LEN != None)):
                         while True:
                             _load_input()
                             length = bit_field_queue.pop(4)
@@ -780,7 +815,8 @@ def file_chars_iter(file_object, chunksize=1024):
 
 def test_compression(in_data):
     # Make the compression coder, with a chosen length coder
-    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+#    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
 
 #    print(original_string)
     original_data = in_data
@@ -852,7 +888,7 @@ u"That Sam-I-am, that Sam-I-am, I do not like that Sam-I-am.000000000000000000",
 ]
 
         # Choose a string from the above
-        original_string = strings[0]
+        original_string = strings[1]
         original_data = original_string.encode('utf-8')
         test_compression(original_data)
 
