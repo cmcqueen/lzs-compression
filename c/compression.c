@@ -52,7 +52,7 @@ static const uint8_t lengthDecodeTable[(1u << LENGTH_MAX_BIT_WIDTH)] =
 typedef enum
 {
     DECOMPRESS_NORMAL,
-    DECOMPRESS_EXTENDED,
+    DECOMPRESS_EXTENDED
 } SimpleDecompressState_t;
 
 
@@ -267,6 +267,15 @@ const uint8_t StateBitMinimumWidth[NUM_DECOMPRESS_STATES] =
     LENGTH_MAX_BIT_WIDTH,       // DECOMPRESS_GET_EXTENDED_LENGTH,
 };
 
+typedef enum
+{
+    D_STATUS_NONE                       = 0x00,
+    D_STATUS_INPUT_STARVED              = 0x01,
+    D_STATUS_INPUT_FINISHED             = 0x02,
+    D_STATUS_END_MARKER                 = 0x04,
+    D_STATUS_NO_OUTPUT_BUFFER_SPACE     = 0x08
+} DecompressStatus_t;
+
 typedef struct
 {
     /*
@@ -285,7 +294,7 @@ typedef struct
     size_t              inLength;           // On entry, set this to the length of the input data. On exit, it is the length of unprocessed data
     size_t              outLength;          // On entry, set this to the space in the output buffer. On exit, decremented by the number of output bytes generated
 
-    // TODO: add a status flag
+    uint_fast8_t        status;
 
     /*
      * These are private members, and should not be changed.
@@ -306,6 +315,7 @@ typedef struct
  */
 void decompress_init(DecompressParameters_t * pParams)
 {
+    pParams->status = D_STATUS_NONE;
     pParams->bitFieldQueue = 0;
     pParams->bitFieldQueueLen = 0;
     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
@@ -326,14 +336,12 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
     uint_fast8_t        temp8;
 
 
+    pParams->status = D_STATUS_NONE;
     outCount = 0;
 
-    while (
-            (pParams->outLength > 0) &&
-            ((pParams->inLength > 0) || (pParams->bitFieldQueueLen != 0))
-          )
+    for (;;)
     {
-        /* Load more into the bit field queue */
+        // Load input data into the bit field queue
         while ((pParams->inLength > 0) && (pParams->bitFieldQueueLen <= BIT_QUEUE_BITS - 8u))
         {
             pParams->bitFieldQueue |= (*pParams->inPtr++ << (BIT_QUEUE_BITS - 8u - pParams->bitFieldQueueLen));
@@ -341,15 +349,30 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
             DEBUG(("Load queue: %04X\n", pParams->bitFieldQueue));
             pParams->inLength--;
         }
+        // Check if we've reached the end of our input data
+        if (pParams->bitFieldQueueLen == 0)
+        {
+            pParams->status |= D_STATUS_INPUT_FINISHED | D_STATUS_INPUT_STARVED;
+        }
+        // Check if we have enough input data to do something useful
         if (pParams->bitFieldQueueLen < StateBitMinimumWidth[pParams->state])
         {
             // We don't have enough input bits, so we're done for now.
-            return outCount;
+            pParams->status |= D_STATUS_INPUT_STARVED;
         }
+
+        // Check if we need to finish for whatever reason
+        if (pParams->status != D_STATUS_NONE)
+        {
+            // Break out of the top-level loop
+            break;
+        }
+
+        // Process input data in a state machine
         switch (pParams->state)
         {
             case DECOMPRESS_GET_TOKEN_TYPE:
-                /* Get token-type bit */
+                // Get token-type bit
                 if (pParams->bitFieldQueue & (1u << (BIT_QUEUE_BITS - 1u)))
                 {
                     pParams->state = DECOMPRESS_GET_OFFSET_TYPE;
@@ -363,32 +386,40 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 break;
 
             case DECOMPRESS_GET_LITERAL:
-                /* Literal */
-                temp8 = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
-                pParams->bitFieldQueue <<= 8u;
-                pParams->bitFieldQueueLen -= 8u;
-                DEBUG(("Literal %c\n", temp8));
-
-                *pParams->outPtr++ = temp8;
-                pParams->outLength--;
-                outCount++;
-
-                // Write to history
-                pParams->historyPtr[pParams->historyLatestIdx] = temp8;
-
-                // Increment write index, and wrap if necessary
-                pParams->historyLatestIdx++;
-                if (pParams->historyLatestIdx >= pParams->historyBufferSize)
+                // Literal
+                // Check if we have space in the output buffer
+                if (pParams->outLength == 0)
                 {
-                    pParams->historyLatestIdx = 0;
+                    pParams->status |= D_STATUS_NO_OUTPUT_BUFFER_SPACE;
                 }
+                else
+                {
+                    temp8 = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
+                    pParams->bitFieldQueue <<= 8u;
+                    pParams->bitFieldQueueLen -= 8u;
+                    DEBUG(("Literal %c\n", temp8));
 
-                pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
+                    *pParams->outPtr++ = temp8;
+                    pParams->outLength--;
+                    outCount++;
+
+                    // Write to history
+                    pParams->historyPtr[pParams->historyLatestIdx] = temp8;
+
+                    // Increment write index, and wrap if necessary
+                    pParams->historyLatestIdx++;
+                    if (pParams->historyLatestIdx >= pParams->historyBufferSize)
+                    {
+                        pParams->historyLatestIdx = 0;
+                    }
+
+                    pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
+                }
                 break;
 
             case DECOMPRESS_GET_OFFSET_TYPE:
-                /* Offset+length token */
-                /* Decode offset */
+                // Offset+length token
+                // Decode offset
                 temp8 = (pParams->bitFieldQueue & (1u << (BIT_QUEUE_BITS - 1u))) ? 1u : 0;
                 pParams->bitFieldQueue <<= 1u;
                 pParams->bitFieldQueueLen--;
@@ -403,17 +434,21 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 break;
 
             case DECOMPRESS_GET_OFFSET_SHORT:
-                /* Short offset */
+                // Short offset
                 offset = pParams->bitFieldQueue >> (BIT_QUEUE_BITS - SHORT_OFFSET_BITS);
                 pParams->bitFieldQueue <<= SHORT_OFFSET_BITS;
                 pParams->bitFieldQueueLen -= SHORT_OFFSET_BITS;
                 if (offset == 0)
                 {
                     DEBUG(("End marker\n"));
-                    /* Discard any bits that are fractions of a byte, to align with a byte boundary */
+                    // Discard any bits that are fractions of a byte, to align with a byte boundary
                     temp8 = pParams->bitFieldQueueLen % 8u;
                     pParams->bitFieldQueue <<= temp8;
                     pParams->bitFieldQueueLen -= temp8;
+
+                    // Set status saying we found an end marker
+                    pParams->status |= D_STATUS_END_MARKER;
+
                     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
                 }
                 else
@@ -424,7 +459,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 break;
 
         case DECOMPRESS_GET_OFFSET_LONG:
-                /* Long offset */
+                // Long offset
                 pParams->offset = pParams->bitFieldQueue >> (BIT_QUEUE_BITS - LONG_OFFSET_BITS);
                 pParams->bitFieldQueue <<= LONG_OFFSET_BITS;
                 pParams->bitFieldQueueLen -= LONG_OFFSET_BITS;
@@ -433,7 +468,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 break;
 
             case DECOMPRESS_GET_LENGTH:
-                /* Decode length and copy characters */
+                // Decode length and copy characters
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_CODE
                 // TODO: fill this in
 #endif
@@ -450,7 +485,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 if (pParams->bitFieldQueueLen < temp8)
                 {
                     // We don't have enough input bits, so we're done for now.
-                    return outCount;
+                    pParams->status |= D_STATUS_INPUT_STARVED;
                 }
                 else
                 {
@@ -469,7 +504,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     // Do some offset calculations before beginning to copy
                     offset = pParams->offset;
                     ASSERT(offset < pParams->historyBufferSize);
-    #if 0
+#if 0
                     // This code is a "safe" version (no overflows as long as pParams->historyBufferSize < MAX_UINT16/2)
                     if (offset > pParams->historyLatestIdx)
                     {
@@ -479,28 +514,40 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     {
                         pParams->historyReadIdx = pParams->historyLatestIdx - offset;
                     }
-    #else
+#else
                     // This code is simpler, but relies on calculation overflows wrapping as expected.
                     if (offset > pParams->historyLatestIdx)
                     {
-                        /* This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value */
+                        // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
                         offset -= pParams->historyBufferSize;
                     }
                     pParams->historyReadIdx = pParams->historyLatestIdx - offset;
-    #endif
+#endif
                     DEBUG(("(%d, %d)\n", offset, pParams->length));
                 }
                 break;
 
             case DECOMPRESS_COPY_DATA:
             case DECOMPRESS_COPY_EXTENDED_DATA:
-                /* Now copy (offset, length) bytes */
-                if (pParams->length == 0)
+                // Copy (offset, length) bytes.
+                // Offset has already been used to calculate pParams->historyReadIdx.
+                for (;;)
                 {
-                    pParams->state++;   // Goes to either DECOMPRESS_GET_TOKEN_TYPE or DECOMPRESS_GET_EXTENDED_LENGTH
-                }
-                else
-                {
+                    if (pParams->length == 0)
+                    {
+                        // We're finished copying. Change state, and exit this inner copying loop.
+                        pParams->state++;   // Goes to either DECOMPRESS_GET_TOKEN_TYPE or DECOMPRESS_GET_EXTENDED_LENGTH
+                        break;
+                    }
+                    // Check if we have space in the output buffer
+                    if (pParams->outLength == 0)
+                    {
+                        // We're out of space in the output buffer.
+                        // Set status, exit this inner copying loop, but maintain the current state.
+                        pParams->status |= D_STATUS_NO_OUTPUT_BUFFER_SPACE;
+                        break;
+                    }
+
                     // Get byte from history
                     temp8 = (pParams->historyPtr)[pParams->historyReadIdx];
 
@@ -530,19 +577,19 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 break;
 
             case DECOMPRESS_GET_EXTENDED_LENGTH:
-                /* Extended length token */
-                /* Get 4 bits */
+                // Extended length token
+                // Get 4 bits
                 pParams->length = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - LENGTH_MAX_BIT_WIDTH));
                 pParams->bitFieldQueue <<= LENGTH_MAX_BIT_WIDTH;
                 pParams->bitFieldQueueLen -= LENGTH_MAX_BIT_WIDTH;
                 if (pParams->length == MAX_EXTENDED_LENGTH)
                 {
-                    /* We stay in extended length decode mode */
+                    // We stay in extended length decode mode
                     pParams->state = DECOMPRESS_COPY_EXTENDED_DATA;
                 }
                 else
                 {
-                    /* We're finished with extended length decode mode; go back to normal */
+                    // We're finished with extended length decode mode; go back to normal
                     pParams->state = DECOMPRESS_COPY_DATA;
                 }
                 break;
@@ -605,6 +652,11 @@ int main(int argc, char **argv)
             0x86, 0x22, 0x52, 0x46, 0x48, 0x85, 0x8A, 0x6F,
             0x32, 0x0B, 0xB0, 0x00,
 #endif
+#if 1
+            0x29, 0x19, 0x4E, 0x87, 0x53, 0x91, 0xB8, 0x40,
+            0x61, 0x10, 0x1C, 0xCE, 0x87, 0x23, 0x49, 0xB8,
+            0xCE, 0x20, 0x31, 0x9B, 0xCD, 0xC7, 0x43, 0x0E,
+#endif
         };
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
@@ -628,16 +680,29 @@ int main(int argc, char **argv)
     decompress_init(&decompress_params);
 
 #if 0
-    // Decompress all in one go
+    // Decompress all in one go.
+    // Actually, it will still stop at each end-marker.
     decompress_params.inPtr = compressed_data;
     decompress_params.inLength = sizeof(compressed_data);
     decompress_params.outPtr = out_buffer;
     // out buffer length is '-1' to allow for string zero termination
     decompress_params.outLength = sizeof(out_buffer) - 1;
-    out_length = decompress_incremental(&decompress_params);
+    while (1)
+    {
+        if (
+                (decompress_params.inLength == 0) &&
+                ((decompress_params.status & D_STATUS_INPUT_STARVED) != 0)
+           )
+        {
+            break;
+        }
+        out_length = decompress_incremental(&decompress_params);
+        printf("    status %02X\n", decompress_params.status);
+    }
     // Add string zero termination
     *decompress_params.outPtr = 0;
-    printf("%s", out_buffer);
+    printf("%s\n", out_buffer);
+    printf("status %02X\n", decompress_params.status);
 #elif 0
     // Decompress bounded by input buffer size
     decompress_params.inPtr = compressed_data;
@@ -649,17 +714,27 @@ int main(int argc, char **argv)
         decompress_params.inLength = compressed_data + sizeof(compressed_data) - decompress_params.inPtr;
         if (decompress_params.inLength > 10u)
             decompress_params.inLength = 10u;
-        if (decompress_params.inLength == 0)
+        if (
+                (decompress_params.inLength == 0) &&
+                ((decompress_params.status & D_STATUS_INPUT_STARVED) != 0)
+           )
+        {
             break;
+        }
 
         out_length = decompress_incremental(&decompress_params);
         // Add string zero termination
         *decompress_params.outPtr = 0;
         printf("%s\n", decompress_params.outPtr - out_length);
+        if ((decompress_params.status & D_STATUS_END_MARKER) != 0)
+        {
+            printf("status %02X End marker\n", decompress_params.status);
+        }
     }
     // Add string zero termination
     *decompress_params.outPtr = 0;
-    printf("%s", out_buffer);
+    printf("%s\n", out_buffer);
+    printf("status %02X\n", decompress_params.status);
 #elif 1
     // Decompress bounded by output buffer size
     decompress_params.inPtr = compressed_data;
@@ -670,19 +745,29 @@ int main(int argc, char **argv)
     while (1)
     {
         decompress_params.outLength = out_buffer + sizeof(out_buffer) - decompress_params.outPtr;
-        if (decompress_params.outLength > 1u)
-            decompress_params.outLength = 1u;
-        if (decompress_params.inLength == 0)
+        if (decompress_params.outLength > 10u)
+            decompress_params.outLength = 10u;
+        if (
+                (decompress_params.inLength == 0) &&
+                ((decompress_params.status & D_STATUS_INPUT_STARVED) != 0)
+           )
+        {
             break;
+        }
 
         out_length = decompress_incremental(&decompress_params);
         // Add string zero termination
         *decompress_params.outPtr = 0;
         printf("%s\n", decompress_params.outPtr - out_length);
+        if ((decompress_params.status & D_STATUS_END_MARKER) != 0)
+        {
+            printf("status %02X End marker\n", decompress_params.status);
+        }
     }
     // Add string zero termination
     *decompress_params.outPtr = 0;
-    printf("%s", out_buffer);
+    printf("%s\n", out_buffer);
+    printf("status %02X\n", decompress_params.status);
 #endif
 #endif
 
