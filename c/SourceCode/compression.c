@@ -14,8 +14,6 @@
 #include "compression.h"
 
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>         /* For memset() */
 
 
 /*****************************************************************************
