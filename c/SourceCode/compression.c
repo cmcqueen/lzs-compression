@@ -24,7 +24,9 @@
 #define LONG_OFFSET_BITS            11u
 #define BIT_QUEUE_BITS              32u
 
-#define MAX_HISTORY_SIZE            (1u << LONG_OFFSET_BITS)
+#if (MAX_HISTORY_SIZE < (1u << LONG_OFFSET_BITS))
+#error MAX_HISTORY_SIZE is too small
+#endif
 
 #define LENGTH_MAX_BIT_WIDTH        4u
 #define MAX_EXTENDED_LENGTH         15u
@@ -58,9 +60,8 @@ static const uint8_t lengthDecodeTable[(1u << LENGTH_MAX_BIT_WIDTH)] =
      *  0b1110 --> 7
      *  0b1111 xxxx --> 8 (extended)
      */
-    /* Look at 4 bits. Map 0bWXYZ to a length value, and a number of bits actually used for symbol.
-     * High 4 bits are length value. Low 4 bits are the width of the bit field.
-     */
+    // Look at 4 bits. Map 0bWXYZ to a length value, and a number of bits actually used for symbol.
+    // High 4 bits are length value. Low 4 bits are the width of the bit field.
     0x22, 0x22, 0x22, 0x22,     // 0b00 --> 2
     0x32, 0x32, 0x32, 0x32,     // 0b01 --> 3
     0x42, 0x42, 0x42, 0x42,     // 0b10 --> 4
@@ -110,7 +111,7 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
     uint8_t           * outPtr;
     size_t              inRemaining;        // Count of remaining bytes of input
     size_t              outCount;           // Count of output bytes that have been generated
-    uint32_t            bitFieldQueue;      /* Code assumes bits will disappear past MS-bit 31 when shifted left. */
+    uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left.
     uint_fast8_t        bitFieldQueueLen;
     uint_fast16_t       offset;
     uint_fast8_t        length;
@@ -126,9 +127,9 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
     outCount = 0;
     state = DECOMPRESS_NORMAL;
 
-    while ((inRemaining > 0) || (bitFieldQueueLen != 0))
+    for (;;)
     {
-        /* Load more into the bit field queue */
+        // Load input data into the bit field queue
         while ((inRemaining > 0) && (bitFieldQueueLen <= BIT_QUEUE_BITS - 8u))
         {
             bitFieldQueue |= (*inPtr++ << (BIT_QUEUE_BITS - 8u - bitFieldQueueLen));
@@ -136,43 +137,71 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
             DEBUG(("Load queue: %04X\n", bitFieldQueue));
             inRemaining--;
         }
+        // Check if we've reached the end of our input data
+        if (bitFieldQueueLen == 0)
+        {
+            break;
+        }
+        // Check if we've run out of output buffer space
+        if (outCount >= a_outBufferSize)
+        {
+            break;
+        }
+
         switch (state)
         {
             case DECOMPRESS_NORMAL:
-                /* Get token-type bit */
+                // Get token-type bit
+                //      0 means literal byte
+                //      1 means offset/length token
+
+                // We don't need to check bitFieldQueueLen here because
+                // we already checked above that there is at least 1 bit.
                 temp8 = (bitFieldQueue & (1u << (BIT_QUEUE_BITS - 1u))) ? 1u : 0;
                 bitFieldQueue <<= 1u;
                 bitFieldQueueLen--;
                 if (temp8 == 0)
                 {
-                    /* Literal */
+                    // Literal
+                    if (bitFieldQueueLen < 8u)
+                    {
+                        break;
+                    }
                     temp8 = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
                     bitFieldQueue <<= 8u;
                     bitFieldQueueLen -= 8u;
                     DEBUG(("Literal %c\n", temp8));
-                    if (outCount < a_outBufferSize)
-                    {
-                        *outPtr++ = temp8;
-                        outCount++;
-                    }
+
+                    // Write to output
+                    // Not necessary to check for space, because that was done at the top of the main loop.
+                    *outPtr++ = temp8;
+                    outCount++;
                 }
                 else
                 {
-                    /* Offset+length token */
-                    /* Decode offset */
+                    // Offset+length token
+                    // Decode offset
+                    if (bitFieldQueueLen < 1u)
+                    {
+                        break;
+                    }
                     temp8 = (bitFieldQueue & (1u << (BIT_QUEUE_BITS - 1u))) ? 1u : 0;
                     bitFieldQueue <<= 1u;
                     bitFieldQueueLen--;
                     if (temp8)
                     {
-                        /* Short offset */
+                        // Short offset
+                        if (bitFieldQueueLen < SHORT_OFFSET_BITS)
+                        {
+                            break;
+                        }
                         offset = bitFieldQueue >> (BIT_QUEUE_BITS - SHORT_OFFSET_BITS);
                         bitFieldQueue <<= SHORT_OFFSET_BITS;
                         bitFieldQueueLen -= SHORT_OFFSET_BITS;
                         if (offset == 0)
                         {
                             DEBUG(("End marker\n"));
-                            /* Discard any bits that are fractions of a byte, to align with a byte boundary */
+                            // Discard any bits that are fractions of a byte, to align with a byte boundary
                             temp8 = bitFieldQueueLen % 8u;
                             bitFieldQueue <<= temp8;
                             bitFieldQueueLen -= temp8;
@@ -180,14 +209,18 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                     }
                     else
                     {
-                        /* Long offset */
+                        // Long offset
+                        if (bitFieldQueueLen < LONG_OFFSET_BITS)
+                        {
+                            break;
+                        }
                         offset = bitFieldQueue >> (BIT_QUEUE_BITS - LONG_OFFSET_BITS);
                         bitFieldQueue <<= LONG_OFFSET_BITS;
                         bitFieldQueueLen -= LONG_OFFSET_BITS;
                     }
                     if (offset != 0)
                     {
-                        /* Decode length and copy characters */
+                        // Decode length and copy characters
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_CODE
                         /* Length is encoded as:
                          *  0b00 --> 2
@@ -198,30 +231,38 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                          *  0b1110 --> 7
                          *  0b1111 xxxx --> 8 (extended)
                          */
-                        /* Get 4 bits */
+                        // Get 4 bits
                         temp8 = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - 4u));
-                        if (temp8 < 0xC)    /* 0xC is 0b1100 */
+                        if (temp8 < 0xC)    // 0xC is 0b1100
                         {
-                            /* Length of 2, 3 or 4, encoded in 2 bits */
+                            // Length of 2, 3 or 4, encoded in 2 bits
+                            if (bitFieldQueueLen < 2u)
+                            {
+                                break;
+                            }
                             length = (temp8 >> 2u) + 2u;
                             bitFieldQueue <<= 2u;
                             bitFieldQueueLen -= 2u;
                         }
                         else
                         {
-                            /* Length (encoded in 4 bits) of 5, 6, 7, or (8 + extended) */
+                            // Length (encoded in 4 bits) of 5, 6, 7, or (8 + extended)
+                            if (bitFieldQueueLen < 4u)
+                            {
+                                break;
+                            }
                             length = (temp8 - 0xC + 5u);
                             bitFieldQueue <<= 4u;
                             bitFieldQueueLen -= 4u;
                             if (length == 8u)
                             {
-                                /* We must go into extended length decode mode */
+                                // We must go into extended length decode mode
                                 state = DECOMPRESS_EXTENDED;
                             }
                         }
 #endif
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_TABLE
-                        /* Get 4 bits, then look up decode data */
+                        // Get 4 bits, then look up decode data
                         temp8 = lengthDecodeTable[
                                                   (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - LENGTH_MAX_BIT_WIDTH))
                                                  ];
@@ -229,23 +270,29 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                         length = temp8 >> 4u;
                         // Number of bits for this length token is in the lower nibble
                         temp8 &= 0xF;
+                        if (bitFieldQueueLen < temp8)
+                        {
+                            break;
+                        }
                         bitFieldQueue <<= temp8;
                         bitFieldQueueLen -= temp8;
                         if (length == MAX_INITIAL_LENGTH)
                         {
-                            /* We must go into extended length decode mode */
+                            // We must go into extended length decode mode
                             state = DECOMPRESS_EXTENDED;
                         }
 #endif
                         DEBUG(("(%d, %d)\n", offset, length));
-                        /* Now copy (offset, length) bytes */
+                        // Now copy (offset, length) bytes
                         for (temp8 = 0; temp8 < length; temp8++)
                         {
-                            if (outCount < a_outBufferSize)
+                            *outPtr = *(outPtr - offset);
+                            ++outPtr;
+                            ++outCount;
+
+                            if (outCount >= a_outBufferSize)
                             {
-                                *outPtr = *(outPtr - offset);
-                                ++outPtr;
-                                ++outCount;
+                                break;
                             }
                         }
                     }
@@ -253,24 +300,30 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                 break;
 
             case DECOMPRESS_EXTENDED:
-                /* Extended length token */
-                /* Get 4 bits */
+                // Extended length token
+                // Get 4 bits
+                if (bitFieldQueueLen < LENGTH_MAX_BIT_WIDTH)
+                {
+                    break;
+                }
                 length = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - LENGTH_MAX_BIT_WIDTH));
                 bitFieldQueue <<= LENGTH_MAX_BIT_WIDTH;
                 bitFieldQueueLen -= LENGTH_MAX_BIT_WIDTH;
-                /* Now copy (offset, length) bytes */
+                // Now copy (offset, length) bytes
                 for (temp8 = 0; temp8 < length; temp8++)
                 {
-                    if (outCount < a_outBufferSize)
+                    *outPtr = *(outPtr - offset);
+                    ++outPtr;
+                    ++outCount;
+
+                    if (outCount >= a_outBufferSize)
                     {
-                        *outPtr = *(outPtr - offset);
-                        ++outPtr;
-                        ++outCount;
+                        break;
                     }
                 }
                 if (length != MAX_EXTENDED_LENGTH)
                 {
-                    /* We're finished with extended length decode mode; go back to normal */
+                    // We're finished with extended length decode mode; go back to normal
                     state = DECOMPRESS_NORMAL;
                 }
                 break;
@@ -448,7 +501,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 // TODO: fill this in
 #endif
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_TABLE
-                /* Get 4 bits, then look up decode data */
+                // Get 4 bits, then look up decode data
                 temp8 = lengthDecodeTable[
                                           pParams->bitFieldQueue >> (BIT_QUEUE_BITS - LENGTH_MAX_BIT_WIDTH)
                                          ];
@@ -468,7 +521,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     pParams->bitFieldQueueLen -= temp8;
                     if (pParams->length == MAX_INITIAL_LENGTH)
                     {
-                        /* We must go into extended length decode mode */
+                        // We must go into extended length decode mode
                         pParams->state = DECOMPRESS_COPY_EXTENDED_DATA;
                     }
                     else

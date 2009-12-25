@@ -21,6 +21,7 @@
  * Defines
  ****************************************************************************/
 
+// MAX_HISTORY_SIZE is derived from LONG_OFFSET_BITS.
 #define MAX_HISTORY_SIZE            (1u << 11u)
 
 
