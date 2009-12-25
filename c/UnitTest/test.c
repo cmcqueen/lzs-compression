@@ -235,7 +235,7 @@ void test_decompress_incremental_output_bounded(void)
 
 int main(int argc, char **argv)
 {
-#if 1
+#if 0
     test_decompress_1();
 #elif 0
     test_decompress_incremental_all();

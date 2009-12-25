@@ -112,7 +112,7 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
     size_t              inRemaining;        // Count of remaining bytes of input
     size_t              outCount;           // Count of output bytes that have been generated
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left.
-    uint_fast8_t        bitFieldQueueLen;
+    int_fast8_t         bitFieldQueueLen;
     uint_fast16_t       offset;
     uint_fast8_t        length;
     uint8_t             temp8;
@@ -138,8 +138,9 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
             inRemaining--;
         }
         // Check if we've reached the end of our input data
-        if (bitFieldQueueLen == 0)
+        if (bitFieldQueueLen <= 0)
         {
+            ASSERT(bitFieldQueueLen >= 0);
             break;
         }
         // Check if we've run out of output buffer space
@@ -378,8 +379,9 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
             pParams->inLength--;
         }
         // Check if we've reached the end of our input data
-        if (pParams->bitFieldQueueLen == 0)
+        if (pParams->bitFieldQueueLen <= 0)
         {
+            ASSERT(pParams->bitFieldQueueLen >= 0);     // It should never go negative. That is a bug.
             pParams->status |= D_STATUS_INPUT_FINISHED | D_STATUS_INPUT_STARVED;
         }
         // Check if we have enough input data to do something useful
