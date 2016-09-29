@@ -95,7 +95,7 @@ void test_decompress_1(void)
 
     // Add string zero termination
     out_buffer[out_length] = 0;
-    printf("Decompressed data:\n%s", out_buffer);
+    printf("Decompressed data:\n%s\n", out_buffer);
 }
 
 void test_decompress_incremental_all(void)
