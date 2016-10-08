@@ -6,8 +6,8 @@
  *
  ****************************************************************************/
 
-#ifndef COMPRESSION_H
-#define COMPRESSION_H
+#ifndef __LZS_DECOMPRESSION_H
+#define __LZS_DECOMPRESSION_H
 
 /*****************************************************************************
  * Includes
@@ -98,4 +98,4 @@ void decompress_init(DecompressParameters_t * pParams);
 size_t decompress_incremental(DecompressParameters_t * pParams);
 
 
-#endif // !defined(COMPRESSION_H)
+#endif // !defined(__LZS_DECOMPRESSION_H)
