@@ -82,7 +82,7 @@ static const uint8_t compressed_data[] =
  * Functions
  ****************************************************************************/
 
-void test_decompress_1(void)
+static void test_decompress_1(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
     size_t  out_length;
@@ -91,14 +91,14 @@ void test_decompress_1(void)
     memset(out_buffer, 'A', sizeof(out_buffer));
 
     // out buffer length is '-1' to allow for string zero termination
-    out_length = decompress(out_buffer, sizeof(out_buffer) - 1, compressed_data, sizeof(compressed_data));
+    out_length = decompress(out_buffer, sizeof(out_buffer) - 1, p_compressed_data, len);
 
     // Add string zero termination
     out_buffer[out_length] = 0;
     printf("Decompressed data:\n%s\n", out_buffer);
 }
 
-void test_decompress_incremental_all(void)
+static void test_decompress_incremental_all(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
@@ -115,8 +115,8 @@ void test_decompress_incremental_all(void)
 
     // Decompress all in one go.
     // Actually, it will still stop at each end-marker.
-    decompress_params.inPtr = compressed_data;
-    decompress_params.inLength = sizeof(compressed_data);
+    decompress_params.inPtr = p_compressed_data;
+    decompress_params.inLength = len;
     decompress_params.outPtr = out_buffer;
     // out buffer length is '-1' to allow for string zero termination
     decompress_params.outLength = sizeof(out_buffer) - 1;
@@ -138,7 +138,7 @@ void test_decompress_incremental_all(void)
 }
 
 
-void test_decompress_incremental_input_bounded(void)
+static void test_decompress_incremental_input_bounded(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
@@ -154,13 +154,13 @@ void test_decompress_incremental_input_bounded(void)
     decompress_init(&decompress_params);
 
     // Decompress bounded by input buffer size
-    decompress_params.inPtr = compressed_data;
+    decompress_params.inPtr = p_compressed_data;
     decompress_params.outPtr = out_buffer;
     // out buffer length is '-1' to allow for string zero termination
     decompress_params.outLength = sizeof(out_buffer) - 1;
     while (1)
     {
-        decompress_params.inLength = compressed_data + sizeof(compressed_data) - decompress_params.inPtr;
+        decompress_params.inLength = p_compressed_data + len - decompress_params.inPtr;
         if (decompress_params.inLength > 10u)
             decompress_params.inLength = 10u;
         if (
@@ -185,7 +185,7 @@ void test_decompress_incremental_input_bounded(void)
     printf("Decompressed data:\n%s\n", out_buffer);
 }
 
-void test_decompress_incremental_output_bounded(void)
+static void test_decompress_incremental_output_bounded(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
@@ -201,8 +201,8 @@ void test_decompress_incremental_output_bounded(void)
     decompress_init(&decompress_params);
 
     // Decompress bounded by output buffer size
-    decompress_params.inPtr = compressed_data;
-    decompress_params.inLength = sizeof(compressed_data);
+    decompress_params.inPtr = p_compressed_data;
+    decompress_params.inLength = len;
     decompress_params.outPtr = out_buffer;
     // out buffer length is '-1' to allow for string zero termination
     decompress_params.outLength = sizeof(out_buffer) - 1;
@@ -235,16 +235,21 @@ void test_decompress_incremental_output_bounded(void)
 
 int main(int argc, char **argv)
 {
-#if 0
-    test_decompress_1();
-#elif 0
-    test_decompress_incremental_all();
-#elif 0
-    test_decompress_incremental_input_bounded();
+	const uint8_t * p_compressed_data = "";
+	size_t len = 0;
+	
+	p_compressed_data = compressed_data;
+	len = sizeof(compressed_data);
+	
+#if 1
+    test_decompress_1(p_compressed_data, len);
 #elif 1
-    test_decompress_incremental_output_bounded();
+    test_decompress_incremental_all(p_compressed_data, len);
+#elif 1
+    test_decompress_incremental_input_bounded(p_compressed_data, len);
+#elif 1
+    test_decompress_incremental_output_bounded(p_compressed_data, len);
 #endif
 
     return 0;
 }
-

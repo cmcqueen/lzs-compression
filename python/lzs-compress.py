@@ -12,8 +12,8 @@ from lzs import *
 
 def compress(in_data):
     # Make the compression coder, with a chosen length coder
-#    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
-    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
+    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+#    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
     compressed_data = LZCM.compress(in_data)
     encoded = LZCM.encode(compressed_data)
     return encoded

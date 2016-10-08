@@ -12,8 +12,8 @@ from lzs import *
 
 def decompress(in_data):
     # Make the compression coder, with a chosen length coder
-#    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
-    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
+    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+#    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
     decoded = LZCM.decode(in_data)
     out_data = LZCM.decompress(decoded)
     return out_data
