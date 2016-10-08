@@ -813,6 +813,21 @@ def file_chars_iter(file_object, chunksize=1024):
         for b in chunk:
             yield b
 
+def compress(in_data):
+    # Make the compression coder, with a chosen length coder
+#    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
+    compressed_data = LZCM.compress(in_data)
+    encoded = LZCM.encode(compressed_data)
+    return encoded
+
+def decompress(in_data):
+    # Make the compression coder, with a chosen length coder
+#    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
+    decoded = LZCM.decode(in_data)
+    out_data = LZCM.decompress(decoded)
+    return out_data
 
 def test_compression(in_data):
     # Make the compression coder, with a chosen length coder
@@ -869,7 +884,7 @@ def main():
         print(test.pop(4))
         print(test)
     
-    if 1:
+    if 0:
         strings = [
 u"""Return a string containing a printable representation of an object. For many types, this function makes an attempt to return a string that would yield an object with the same value when passed to eval(), otherwise the representation is a string enclosed in angle brackets that contains the name of the type of the object together with additional information often including the name and address of the object. A class can control what this function returns for its instances by defining a __repr__() method.""",
 
@@ -897,6 +912,18 @@ u"That Sam-I-am, that Sam-I-am, I do not like that Sam-I-am.000000000000000000",
         with open(sys.argv[1], "rb") as f:
             in_data = f.read()
             test_compression(in_data)
+
+    if 0:
+        with open(sys.argv[1], "rb") as in_stream, open(sys.argv[2], "wb") as out_stream:
+            in_data = in_stream.read()
+            compressed_data = compress(in_data)
+            out_stream.write(compressed_data)
+
+    if 1:
+        with open(sys.argv[1], "rb") as in_stream, open(sys.argv[2], "wb") as out_stream:
+            in_data = in_stream.read()
+            decompressed_data = decompress(in_data)
+            out_stream.write(decompressed_data)
 
     if 0:
         cbb = CircularBytesBuffer(10)
