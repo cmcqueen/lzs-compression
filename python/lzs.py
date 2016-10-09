@@ -12,6 +12,12 @@ import sys
 from collections import defaultdict
 
 
+if sys.version_info.major == 2:
+    byteschr = chr
+else:
+    def byteschr(x):
+        return bytes([x])
+
 class BitFieldQueue(object):
     __slots__ = [ 'value', 'width' ]
     MAX_WIDTH = 32
@@ -109,12 +115,14 @@ class CircularBytesBuffer(object):
             if -index > self.num_items:
                 raise IndexError(u"CircularBytesBuffer index out of range")
             return self._add_index_wrapped(self.newest, index)
-    def _normalise_slice(self, slice):
-        (start, end, step) = slice.indices(self.num_items)
+    def _normalise_slice(self, key):
+        (start, end, step) = key.indices(self.num_items)
         if step != 1:
             raise IndexError(u"Cannot slice CircularBytesBuffer with a step value")
         if start > end:
-            raise IndexError(u"Start value must not be greater than end value")
+            if end == 0:
+                end = self.num_items
+            #raise IndexError(u"Start value {} must not be greater than end value {} for len {}".format(start, end, self.num_items))
         count = end - start
         start = self._add_index_wrapped(self.oldest, start)
         end = self._add_index_wrapped(self.oldest, end)
@@ -122,7 +130,7 @@ class CircularBytesBuffer(object):
         
     def __getitem__(self, key):
         if isinstance(key, int):
-            return chr(self.buffer[self._normalise_index(key)])
+            return bytes( [ self.buffer[self._normalise_index(key)] ] )
         elif isinstance(key, slice):
             (start, end, count) = self._normalise_slice(key)
             # First bit
@@ -679,7 +687,7 @@ class LZCMCoder(object):
                         continue_match_found = (match_len == self.length_coder.MAX_CONTINUED_LEN)
                     break
             if not found:
-                out_data.append(in_data[in_data_offset])
+                out_data.append(in_data[in_data_offset:in_data_offset+1])
                 add_to_match_dict(in_data_offset) 
                 in_data_offset += 1
         return out_data
@@ -714,12 +722,14 @@ class LZCMCoder(object):
         bit_field_queue.append(BitFieldQueue(0,needed_pad))
         _do_output()
 
-        return str(out_data)
+        return bytes(out_data)
 
     def decode(self, in_data):
         """Decode the compressed tokens to a binary stream"""
         def _load_input_generator():
             for char in in_data:
+                if isinstance(char, int):
+                    char = bytes( [ char ] )
                 while bit_field_queue.width > 23:
                     yield
                 bit_field_queue.append(BitFieldQueue(ord(char), 8))
@@ -729,7 +739,7 @@ class LZCMCoder(object):
         bit_field_queue = BitFieldQueue()
         out_data = []
         _load_input_instance = _load_input_generator()
-        _load_input = _load_input_instance.next
+        _load_input = lambda: next(_load_input_instance)
 
         _load_input()
         while bit_field_queue.width != 0:
@@ -737,7 +747,7 @@ class LZCMCoder(object):
             token_type = bit_field_queue.pop(1)
             if token_type == 0:
                 # Literal
-                char = chr(bit_field_queue.pop(8))
+                char = byteschr(bit_field_queue.pop(8))
                 out_data.append(char)
             else:
                 # Offset, Length pair
@@ -764,6 +774,8 @@ class LZCMCoder(object):
         """Decode the compressed tokens to a binary stream"""
         def _load_input_generator():
             for char in in_data:
+                if isinstance(char, int):
+                    char = bytes( [ char ] )
                 while bit_field_queue.width > 23:
                     yield
                 bit_field_queue.append(BitFieldQueue(ord(char), 8))
@@ -772,7 +784,7 @@ class LZCMCoder(object):
 
         bit_field_queue = BitFieldQueue()
         _load_input_instance = _load_input_generator()
-        _load_input = _load_input_instance.next
+        _load_input = lambda: next(_load_input_instance)
 
         _load_input()
         while bit_field_queue.width != 0:
@@ -780,7 +792,7 @@ class LZCMCoder(object):
             token_type = bit_field_queue.pop(1)
             if token_type == 0:
                 # Literal
-                char = chr(bit_field_queue.pop(8))
+                char = byteschr(bit_field_queue.pop(8))
                 yield char
             else:
                 # Offset, Length pair
@@ -805,7 +817,7 @@ class LZCMCoder(object):
         out_data = bytearray()
         for token in in_data:
             if isinstance(token, bytes):
-                out_data.append(token)
+                out_data.append(ord(token))
             else:
                 offset, length = token
                 if offset != None:
@@ -813,7 +825,7 @@ class LZCMCoder(object):
                 for i in range(length):
                     next_char = out_data[match_offset]
                     out_data.append(next_char)
-        return out_data
+        return bytes(out_data)
 
     def gen_decompress(self, in_data):
         cbb = CircularBytesBuffer(self.dict_size)
@@ -827,6 +839,6 @@ class LZCMCoder(object):
                     match_offset = offset
                 for i in range(length):
 #                    print(match_offset)
-                    next_char = cbb[match_offset]
+                    next_char = cbb[match_offset:match_offset+1]
                     yield next_char
                     cbb.append(next_char)

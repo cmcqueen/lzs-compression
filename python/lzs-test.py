@@ -20,6 +20,8 @@ def print_binary(in_string):
 def print_hex_list(in_string):
     count = 0
     for char in in_string:
+        if isinstance(char, int):
+            char = chr(char)
         if (count % 8) == 0:
             print()
         print("0x{0:02X}, ".format(ord(char)), end='')
@@ -50,6 +52,7 @@ def test_compression(in_data):
     print(u"length of encoded data = {0}".format(len(encoded)))
 
     decoded = LZCM.decode(encoded)
+    #print(decoded)
     if 0:
         print(decoded)
         for token in LZCM.gen_decode(encoded):
@@ -61,10 +64,10 @@ def test_compression(in_data):
     if 1:
         decompressed_data = bytes()
         for i in LZCM.gen_decompress(LZCM.gen_decode(encoded)):
-            sys.stdout.write(i)
+            #sys.stdout.write(i.decode('utf-8'))
             decompressed_data += i
         print()
-#    print(decompressed_data.decode('utf-8'))
+    #print(decompressed_data.decode('utf-8'))
     print(u"(length = {0})".format(len(decompressed_data)))
 
     if decompressed_data == original_data:
