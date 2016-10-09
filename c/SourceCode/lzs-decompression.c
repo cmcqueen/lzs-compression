@@ -11,7 +11,7 @@
  * Includes
  ****************************************************************************/
 
-#include "lzs-decompression.h"
+#include "lzs.h"
 
 #include <stdint.h>
 
