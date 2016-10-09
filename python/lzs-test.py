@@ -36,8 +36,8 @@ def file_chars_iter(file_object, chunksize=1024):
 
 def test_compression(in_data):
     # Make the compression coder, with a chosen length coder
-#    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
-    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
+    LZCM = LZCMCoder(OffsetCoder1(7,11), LengthCoder1)
+#    LZCM = LZCMCoder(OffsetCoder2(12), LengthCoder8)
 
 #    print(original_string)
     original_data = in_data
@@ -123,6 +123,7 @@ xrange([start], stop[, step])¶
 This function is very similar to range(), but returns an “xrange object” instead of a list. This is an opaque sequence type which yields the same values as the corresponding list, without actually storing them all simultaneously. The advantage of xrange() over range() is minimal (since xrange() still has to create the values when asked for them) except when a very large range is used on a memory-starved machine or when all of the range’s elements are never used (such as when the loop is usually terminated with break).""",
 
 u"That Sam-I-am, that Sam-I-am, I do not like that Sam-I-am.000000000000000000",
+u"a",
 ]
 
         # Choose a string from the above

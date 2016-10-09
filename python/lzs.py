@@ -181,6 +181,49 @@ class OffsetCoder1(object):
             # Long offset
             return bit_field_queue.pop(self.long_bits)
 
+class OffsetCoder1b(object):
+    def __init__(self, short_bits=7, long_bits=11):
+        self.short_bits = short_bits
+        self.long_bits = long_bits
+        self.max_short_offset = (2**self.short_bits) - 1
+        self.max_long_offset = (2**self.long_bits) - 1 + self.max_short_offset
+        self.max_offset = self.max_long_offset
+        self.MAX_OFFSET = self.max_long_offset
+
+    def encode(self, offset):
+        """
+        Encode an offset into a variable-bit-width value.
+        Returns a BitFieldQueue that encodes the offset.
+        """
+        if offset == EndMarker:
+            offset = 0
+        if offset <= self.max_short_offset:
+            # Short offset
+            bit_field = BitFieldQueue(1, 1)
+            bit_field.append(BitFieldQueue(offset, self.short_bits))
+            return bit_field
+        elif offset <= self.max_long_offset:
+            # Long offset
+            bit_field = BitFieldQueue(0, 1)
+            bit_field.append(BitFieldQueue(offset - self.max_short_offset, self.long_bits))
+            return bit_field
+        else:
+            raise Exception(u"Offset {0} is too long to encode".format(offset))
+
+    def decode(self, bit_field_queue):
+        """
+        Reads a variable-bit-width value from a BitFieldQueue.
+        Returns a decoded offset. The value is removed from the BitFieldQueue.
+        """
+        if bit_field_queue.pop(1):
+            # Short offset
+            offset = bit_field_queue.pop(self.short_bits)
+            if offset == 0:
+                offset = EndMarker
+            return offset
+        else:
+            # Long offset
+            return bit_field_queue.pop(self.long_bits) + self.max_short_offset
 
 class OffsetCoder2(object):
     def __init__(self, num_bits=10):
