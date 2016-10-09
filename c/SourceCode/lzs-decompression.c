@@ -36,10 +36,10 @@
 // Choose which method to use
 #define LENGTH_DECODE_METHOD        LENGTH_DECODE_METHOD_TABLE
 
-//#define DEBUG(X)    printf X
-#define DEBUG(X)
+//#define LZS_DEBUG(X)    printf X
+#define LZS_DEBUG(X)
 
-#define ASSERT(X)
+#define LZS_ASSERT(X)
 
 
 /*****************************************************************************
@@ -134,13 +134,13 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
         {
             bitFieldQueue |= (*inPtr++ << (BIT_QUEUE_BITS - 8u - bitFieldQueueLen));
             bitFieldQueueLen += 8u;
-            DEBUG(("Load queue: %04X\n", bitFieldQueue));
+            LZS_DEBUG(("Load queue: %04X\n", bitFieldQueue));
             inRemaining--;
         }
         // Check if we've reached the end of our input data
         if (bitFieldQueueLen <= 0)
         {
-            ASSERT(bitFieldQueueLen >= 0);
+            LZS_ASSERT(bitFieldQueueLen >= 0);
             break;
         }
         // Check if we've run out of output buffer space
@@ -171,7 +171,7 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                     temp8 = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
                     bitFieldQueue <<= 8u;
                     bitFieldQueueLen -= 8u;
-                    DEBUG(("Literal %c\n", temp8));
+                    LZS_DEBUG(("Literal %c\n", temp8));
 
                     // Write to output
                     // Not necessary to check for space, because that was done at the top of the main loop.
@@ -201,7 +201,7 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                         bitFieldQueueLen -= SHORT_OFFSET_BITS;
                         if (offset == 0)
                         {
-                            DEBUG(("End marker\n"));
+                            LZS_DEBUG(("End marker\n"));
                             // Discard any bits that are fractions of a byte, to align with a byte boundary
                             temp8 = bitFieldQueueLen % 8u;
                             bitFieldQueue <<= temp8;
@@ -283,7 +283,7 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
                             state = DECOMPRESS_EXTENDED;
                         }
 #endif
-                        DEBUG(("(%d, %d)\n", offset, length));
+                        LZS_DEBUG(("(%d, %d)\n", offset, length));
                         // Now copy (offset, length) bytes
                         for (temp8 = 0; temp8 < length; temp8++)
                         {
@@ -375,13 +375,13 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
         {
             pParams->bitFieldQueue |= (*pParams->inPtr++ << (BIT_QUEUE_BITS - 8u - pParams->bitFieldQueueLen));
             pParams->bitFieldQueueLen += 8u;
-            DEBUG(("Load queue: %04X\n", pParams->bitFieldQueue));
+            LZS_DEBUG(("Load queue: %04X\n", pParams->bitFieldQueue));
             pParams->inLength--;
         }
         // Check if we've reached the end of our input data
         if (pParams->bitFieldQueueLen <= 0)
         {
-            ASSERT(pParams->bitFieldQueueLen >= 0);     // It should never go negative. That is a bug.
+            LZS_ASSERT(pParams->bitFieldQueueLen >= 0);     // It should never go negative. That is a bug.
             pParams->status |= D_STATUS_INPUT_FINISHED | D_STATUS_INPUT_STARVED;
         }
         // Check if we have enough input data to do something useful
@@ -427,7 +427,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     temp8 = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
                     pParams->bitFieldQueue <<= 8u;
                     pParams->bitFieldQueueLen -= 8u;
-                    DEBUG(("Literal %c\n", temp8));
+                    LZS_DEBUG(("Literal %c\n", temp8));
 
                     *pParams->outPtr++ = temp8;
                     pParams->outLength--;
@@ -470,7 +470,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 pParams->bitFieldQueueLen -= SHORT_OFFSET_BITS;
                 if (offset == 0)
                 {
-                    DEBUG(("End marker\n"));
+                    LZS_DEBUG(("End marker\n"));
                     // Discard any bits that are fractions of a byte, to align with a byte boundary
                     temp8 = pParams->bitFieldQueueLen % 8u;
                     pParams->bitFieldQueue <<= temp8;
@@ -533,7 +533,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
 
                     // Do some offset calculations before beginning to copy
                     offset = pParams->offset;
-                    ASSERT(offset <= pParams->historyBufferSize);
+                    LZS_ASSERT(offset <= pParams->historyBufferSize);
 #if 0
                     // This code is a "safe" version (no overflows as long as pParams->historyBufferSize < MAX_UINT16/2)
                     if (offset > pParams->historyLatestIdx)
@@ -553,7 +553,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     }
                     pParams->historyReadIdx = pParams->historyLatestIdx - offset;
 #endif
-                    DEBUG(("(%d, %d)\n", offset, pParams->length));
+                    LZS_DEBUG(("(%d, %d)\n", offset, pParams->length));
                 }
                 break;
 
@@ -626,7 +626,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
 
             default:
                 // TODO: It is an error if we ever get here. Need to do some handling.
-                ASSERT(0);
+                LZS_ASSERT(0);
                 break;
         }
     }
