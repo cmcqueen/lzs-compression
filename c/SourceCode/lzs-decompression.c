@@ -105,7 +105,7 @@ typedef enum
  * No state is kept between calls. Decompression is expected to complete in a single call.
  * It will stop if/when it reaches the end of either the input or the output buffer.
  */
-size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
+size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
 {
     const uint8_t     * inPtr;
     uint8_t           * outPtr;
@@ -338,9 +338,9 @@ size_t decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * 
 /*
  * \brief Initialise incremental decompression
  */
-void decompress_init(DecompressParameters_t * pParams)
+void lzs_decompress_init(LzsDecompressParameters_t * pParams)
 {
-    pParams->status = D_STATUS_NONE;
+    pParams->status = LZS_D_STATUS_NONE;
     pParams->bitFieldQueue = 0;
     pParams->bitFieldQueueLen = 0;
     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
@@ -358,14 +358,14 @@ void decompress_init(DecompressParameters_t * pParams)
  * It will stop if/when it reaches the end of either the input or the output buffer.
  * It will also stop if/when it reaches an end marker.
  */
-size_t decompress_incremental(DecompressParameters_t * pParams)
+size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
 {
     size_t              outCount;           // Count of output bytes that have been generated
     uint_fast16_t       offset;
     uint_fast8_t        temp8;
 
 
-    pParams->status = D_STATUS_NONE;
+    pParams->status = LZS_D_STATUS_NONE;
     outCount = 0;
 
     for (;;)
@@ -382,17 +382,17 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
         if (pParams->bitFieldQueueLen <= 0)
         {
             LZS_ASSERT(pParams->bitFieldQueueLen >= 0);     // It should never go negative. That is a bug.
-            pParams->status |= D_STATUS_INPUT_FINISHED | D_STATUS_INPUT_STARVED;
+            pParams->status |= LZS_D_STATUS_INPUT_FINISHED | LZS_D_STATUS_INPUT_STARVED;
         }
         // Check if we have enough input data to do something useful
         if (pParams->bitFieldQueueLen < StateBitMinimumWidth[pParams->state])
         {
             // We don't have enough input bits, so we're done for now.
-            pParams->status |= D_STATUS_INPUT_STARVED;
+            pParams->status |= LZS_D_STATUS_INPUT_STARVED;
         }
 
         // Check if we need to finish for whatever reason
-        if (pParams->status != D_STATUS_NONE)
+        if (pParams->status != LZS_D_STATUS_NONE)
         {
             // Break out of the top-level loop
             break;
@@ -420,7 +420,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 // Check if we have space in the output buffer
                 if (pParams->outLength == 0)
                 {
-                    pParams->status |= D_STATUS_NO_OUTPUT_BUFFER_SPACE;
+                    pParams->status |= LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE;
                 }
                 else
                 {
@@ -477,7 +477,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     pParams->bitFieldQueueLen -= temp8;
 
                     // Set status saying we found an end marker
-                    pParams->status |= D_STATUS_END_MARKER;
+                    pParams->status |= LZS_D_STATUS_END_MARKER;
 
                     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
                 }
@@ -515,7 +515,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                 if (pParams->bitFieldQueueLen < temp8)
                 {
                     // We don't have enough input bits, so we're done for now.
-                    pParams->status |= D_STATUS_INPUT_STARVED;
+                    pParams->status |= LZS_D_STATUS_INPUT_STARVED;
                 }
                 else
                 {
@@ -574,7 +574,7 @@ size_t decompress_incremental(DecompressParameters_t * pParams)
                     {
                         // We're out of space in the output buffer.
                         // Set status, exit this inner copying loop, but maintain the current state.
-                        pParams->status |= D_STATUS_NO_OUTPUT_BUFFER_SPACE;
+                        pParams->status |= LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE;
                         break;
                     }
 

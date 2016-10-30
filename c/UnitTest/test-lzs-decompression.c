@@ -91,7 +91,7 @@ static void test_decompress_1(const uint8_t * p_compressed_data, size_t len)
     memset(out_buffer, 'A', sizeof(out_buffer));
 
     // out buffer length is '-1' to allow for string zero termination
-    out_length = decompress(out_buffer, sizeof(out_buffer) - 1, p_compressed_data, len);
+    out_length = lzs_decompress(out_buffer, sizeof(out_buffer) - 1, p_compressed_data, len);
 
     // Add string zero termination
     out_buffer[out_length] = 0;
@@ -102,7 +102,7 @@ static void test_decompress_incremental_all(const uint8_t * p_compressed_data, s
 {
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
-    DecompressParameters_t  decompress_params;
+    LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
 
@@ -111,7 +111,7 @@ static void test_decompress_incremental_all(const uint8_t * p_compressed_data, s
     // Initialise
     decompress_params.historyPtr = history_buffer;
     decompress_params.historyBufferSize = sizeof(history_buffer);
-    decompress_init(&decompress_params);
+    lzs_decompress_init(&decompress_params);
 
     // Decompress all in one go.
     // Actually, it will still stop at each end-marker.
@@ -124,12 +124,12 @@ static void test_decompress_incremental_all(const uint8_t * p_compressed_data, s
     {
         if (
                 (decompress_params.inLength == 0) &&
-                ((decompress_params.status & D_STATUS_INPUT_STARVED) != 0)
+                ((decompress_params.status & LZS_D_STATUS_INPUT_STARVED) != 0)
            )
         {
             break;
         }
-        out_length = decompress_incremental(&decompress_params);
+        out_length = lzs_decompress_incremental(&decompress_params);
         printf("Exit with status %02X\n", decompress_params.status);
     }
     // Add string zero termination
@@ -142,7 +142,7 @@ static void test_decompress_incremental_input_bounded(const uint8_t * p_compress
 {
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
-    DecompressParameters_t  decompress_params;
+    LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
 
@@ -151,7 +151,7 @@ static void test_decompress_incremental_input_bounded(const uint8_t * p_compress
     // Initialise
     decompress_params.historyPtr = history_buffer;
     decompress_params.historyBufferSize = sizeof(history_buffer);
-    decompress_init(&decompress_params);
+    lzs_decompress_init(&decompress_params);
 
     // Decompress bounded by input buffer size
     decompress_params.inPtr = p_compressed_data;
@@ -165,17 +165,17 @@ static void test_decompress_incremental_input_bounded(const uint8_t * p_compress
             decompress_params.inLength = 10u;
         if (
                 (decompress_params.inLength == 0) &&
-                ((decompress_params.status & D_STATUS_INPUT_STARVED) != 0)
+                ((decompress_params.status & LZS_D_STATUS_INPUT_STARVED) != 0)
            )
         {
             break;
         }
 
-        out_length = decompress_incremental(&decompress_params);
+        out_length = lzs_decompress_incremental(&decompress_params);
         // Add string zero termination
         *decompress_params.outPtr = 0;
         printf("    %s\n", decompress_params.outPtr - out_length);
-        if ((decompress_params.status & ~(D_STATUS_INPUT_STARVED | D_STATUS_INPUT_FINISHED)) != 0)
+        if ((decompress_params.status & ~(LZS_D_STATUS_INPUT_STARVED | LZS_D_STATUS_INPUT_FINISHED)) != 0)
         {
             printf("Exit with status %02X\n", decompress_params.status);
         }
@@ -189,7 +189,7 @@ static void test_decompress_incremental_output_bounded(const uint8_t * p_compres
 {
     uint8_t out_buffer[1000];
     uint8_t history_buffer[MAX_HISTORY_SIZE];
-    DecompressParameters_t  decompress_params;
+    LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
 
@@ -198,7 +198,7 @@ static void test_decompress_incremental_output_bounded(const uint8_t * p_compres
     // Initialise
     decompress_params.historyPtr = history_buffer;
     decompress_params.historyBufferSize = sizeof(history_buffer);
-    decompress_init(&decompress_params);
+    lzs_decompress_init(&decompress_params);
 
     // Decompress bounded by output buffer size
     decompress_params.inPtr = p_compressed_data;
@@ -213,17 +213,17 @@ static void test_decompress_incremental_output_bounded(const uint8_t * p_compres
             decompress_params.outLength = 10u;
         if (
                 (decompress_params.inLength == 0) &&
-                ((decompress_params.status & D_STATUS_INPUT_STARVED) != 0)
+                ((decompress_params.status & LZS_D_STATUS_INPUT_STARVED) != 0)
            )
         {
             break;
         }
 
-        out_length = decompress_incremental(&decompress_params);
+        out_length = lzs_decompress_incremental(&decompress_params);
         // Add string zero termination
         *decompress_params.outPtr = 0;
         printf("    %s\n", decompress_params.outPtr - out_length);
-        if ((decompress_params.status & ~D_STATUS_NO_OUTPUT_BUFFER_SPACE) != 0)
+        if ((decompress_params.status & ~LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE) != 0)
         {
             printf("status %02X\n", decompress_params.status);
         }
@@ -235,12 +235,12 @@ static void test_decompress_incremental_output_bounded(const uint8_t * p_compres
 
 int main(int argc, char **argv)
 {
-	const uint8_t * p_compressed_data = "";
-	size_t len = 0;
-	
-	p_compressed_data = compressed_data;
-	len = sizeof(compressed_data);
-	
+    const uint8_t * p_compressed_data = "";
+    size_t len = 0;
+    
+    p_compressed_data = compressed_data;
+    len = sizeof(compressed_data);
+    
 #if 1
     test_decompress_1(p_compressed_data, len);
 #elif 1
