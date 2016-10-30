@@ -22,6 +22,7 @@
 
 #define SHORT_OFFSET_BITS           7u
 #define LONG_OFFSET_BITS            11u
+#define EXTENDED_LENGTH_BITS        4u
 #define BIT_QUEUE_BITS              32u
 
 #define SHORT_OFFSET_MAX            ((1u << SHORT_OFFSET_BITS) - 1u)
@@ -34,9 +35,9 @@
 #define LENGTH_MAX_BIT_WIDTH        4u
 #define MIN_LENGTH                  2u
 #define MAX_SHORT_LENGTH            8u
-#define MAX_EXTENDED_LENGTH         15u
+#define MAX_EXTENDED_LENGTH         ((1u << EXTENDED_LENGTH_BITS) - 1u)
 
-#define LZS_SEARCH_MATCH_MAX        15u
+#define LZS_SEARCH_MATCH_MAX        12u
 
 //#define LZS_DEBUG(X)    printf X
 #define LZS_DEBUG(X)
@@ -88,6 +89,12 @@ static const uint8_t length_width[] =
  * Typedefs
  ****************************************************************************/
 
+typedef enum
+{
+    COMPRESS_NORMAL,
+    COMPRESS_EXTENDED
+} SimpleCompressState_t;
+
 
 /*****************************************************************************
  * Inline Functions
@@ -132,6 +139,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     uint_fast8_t        length;
     uint_fast8_t        best_length;
     uint8_t             temp8;
+    SimpleCompressState_t state;
 
 
     historyLen = 0;
@@ -141,65 +149,133 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     outPtr = a_pOutData;
     inRemaining = a_inLen;
     outCount = 0;
+    state = COMPRESS_NORMAL;
 
     for (;;)
+    {
+        /* Copy output bits to output buffer */
+        while (bitFieldQueueLen >= 8u)
+        {
+            if (outCount >= a_outBufferSize)
+            {
+                return outCount;
+            }
+            *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8));
+            bitFieldQueueLen -= 8u;
+        }
+        if (inRemaining == 0)
+        {
+            /* Exit for loop when all input data is processed. */
+            break;
+        }
+
+        switch (state)
+        {
+            case COMPRESS_NORMAL:
+                /* Look for a match in history */
+                best_length = 0;
+                for (offset = 1; offset < historyLen; offset++)
+                {
+                    matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
+                    length = lzs_match_len(inPtr, inPtr - offset);
+                    if (length > best_length && length >= MIN_LENGTH)
+                    {
+                        best_offset = offset;
+                        best_length = length;
+                        if (length >= LZS_SEARCH_MATCH_MAX)
+                        {
+                            break;
+                        }
+                    }
+                }
+                /* Output */
+                bitFieldQueue <<= 1u;
+                bitFieldQueueLen++;
+                if (best_length == 0)
+                {
+                    /* Literal */
+                    bitFieldQueue <<= 8u;
+                    bitFieldQueue |= *inPtr++;
+                    bitFieldQueueLen += 8u;
+                    inRemaining--;
+                    length = 1;
+                }
+                else
+                {
+                    /* Offset/length token */
+                    /* 1 bit indicates offset/length token */
+                    bitFieldQueue |= 1u;    
+                    /* Encode offset */
+                    if (best_offset <= SHORT_OFFSET_MAX)
+                    {
+                        /* Short offset */
+                        bitFieldQueue <<= (1u + SHORT_OFFSET_BITS);
+                        /* Initial 1 bit indicates short offset */
+                        bitFieldQueue |= (1u << SHORT_OFFSET_BITS) | best_offset;
+                        bitFieldQueueLen += (1u + SHORT_OFFSET_BITS);
+                    }
+                    else
+                    {
+                        /* Long offset */
+                        bitFieldQueue <<= (1u + LONG_OFFSET_BITS);
+                        /* Initial 0 bit indicates long offset */
+                        bitFieldQueue |= best_offset;
+                        bitFieldQueueLen += (1u + LONG_OFFSET_BITS);
+                    }
+                    /* Encode length */
+                    length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
+                    temp8 = length_width[length];
+                    bitFieldQueue <<= temp8;
+                    bitFieldQueue |= length_value[length];
+                    bitFieldQueueLen += temp8;     
+
+                    if (length == MAX_SHORT_LENGTH)
+                    {
+                        state = COMPRESS_EXTENDED;
+                    }
+                }
+                break;
+            case COMPRESS_EXTENDED:
+                matchMax = (inRemaining < MAX_EXTENDED_LENGTH) ? inRemaining : MAX_EXTENDED_LENGTH;
+                length = lzs_match_len(inPtr, inPtr - offset);
+
+                /* Encode length */
+                bitFieldQueue <<= EXTENDED_LENGTH_BITS;
+                bitFieldQueue |= length;
+                bitFieldQueueLen += EXTENDED_LENGTH_BITS;
+                
+                if (length != MAX_EXTENDED_LENGTH)
+                {
+                    state = COMPRESS_NORMAL;
+                }
+                break;
+        }
+        inPtr += length;
+        inRemaining -= length;
+
+        historyLen += length;
+        if (historyLen > MAX_HISTORY_SIZE)
+        {
+            historyLen = MAX_HISTORY_SIZE;
+        }
+    }
+    /* Make end marker, which is like a short offset with value 0, padded out
+     * with 0 to 7 extra zeros to reach a byte boundary. That is,
+     * 0b110000000 */
+    bitFieldQueue <<= (2u + SHORT_OFFSET_BITS + 7u);
+    bitFieldQueueLen += (2u + SHORT_OFFSET_BITS + 7u);
+    bitFieldQueue |= (3u << (SHORT_OFFSET_BITS + 7u));
+    /* Copy output bits to output buffer */
+    while (bitFieldQueueLen >= 8u)
     {
         if (outCount >= a_outBufferSize)
         {
             return outCount;
         }
-        if (inRemaining == 0)
-        {
-            break;
-        }
-        best_length = 0;
-        /* Look for a match in history */
-        for (offset = 1; offset < historyLen; offset++)
-        {
-            matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
-            length = lzs_match_len(inPtr, inPtr - offset);
-            if (length > best_length && length >= MIN_LENGTH)
-            {
-                best_offset = offset;
-                best_length = length;
-            }
-        }
-        /* Output */
-        bitFieldQueue <<= 1;
-        bitFieldQueueLen++;
-        if (best_length == 0)
-        {
-            /* Literal */
-            bitFieldQueue <<= 8;
-            bitFieldQueue |= *inPtr++;
-            bitFieldQueueLen += 8u;
-            inRemaining--;
-        }
-        else
-        {
-            /* Offset/length token */
-            bitFieldQueue |= 1u;    /* 1 bit indicates offset/length token */
-            /* Encode offset */
-            if (best_offset <= SHORT_OFFSET_MAX)
-            {
-                /* Short offset */
-                bitFieldQueue <<= (1u + SHORT_OFFSET_BITS);
-                /* Initial 1 bit indicates short offset */
-                bitFieldQueue |= (1u << SHORT_OFFSET_BITS) | best_offset;
-                bitFieldQueueLen += (1u + SHORT_OFFSET_BITS);
-            }
-            else
-            {
-                /* Long offset */
-                bitFieldQueue <<= (1u + LONG_OFFSET_BITS);
-                /* Initial 0 bit indicates long offset */
-                bitFieldQueue |= best_offset;
-                bitFieldQueueLen += (1u + LONG_OFFSET_BITS);
-            }
-            
-            bitFieldQueue <<= length_width[best_length]
-        }
+        *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8));
+        bitFieldQueueLen -= 8u;
     }
+    return outCount;
 }
 
 
