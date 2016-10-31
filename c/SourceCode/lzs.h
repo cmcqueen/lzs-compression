@@ -2,7 +2,17 @@
  *
  * \file
  *
- * \brief Embedded Compression and Decompression
+ * \brief LZS Compression and Decompression
+ *
+ * This implements LZS (Lempel-Ziv-Stac) compression and decompression, which
+ * is an LZ77 derived algorithm with a 2kB sliding window and Huffman coding.
+ *
+ * See:
+ *     * ANSI X3.241-1994
+ *     * RFC 1967
+ *     * RFC 1974
+ *     * RFC 2395
+ *     * RFC 3943
  *
  ****************************************************************************/
 
