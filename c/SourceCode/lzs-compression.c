@@ -15,6 +15,9 @@
 
 #include <stdint.h>
 
+//#include <inttypes.h>
+//#include <stdio.h>
+
 
 /*****************************************************************************
  * Defines
@@ -39,7 +42,7 @@
 
 #define LZS_SEARCH_MATCH_MAX        12u
 
-//#define LZS_DEBUG(X)    printf X
+//#define LZS_DEBUG(X)                printf X
 #define LZS_DEBUG(X)
 
 #define LZS_ASSERT(X)
@@ -106,7 +109,7 @@ static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * b
     
     for (len = 0; len < matchMax; len++)
     {
-        if (*aPtr != *bPtr)
+        if (*aPtr++ != *bPtr++)
         {
             return len;
         }
@@ -137,6 +140,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     uint_fast16_t       offset;
     uint_fast8_t        matchMax;
     uint_fast8_t        length;
+    uint_fast16_t       best_offset;
     uint_fast8_t        best_length;
     uint8_t             temp8;
     SimpleCompressState_t state;
@@ -162,6 +166,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             }
             *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8));
             bitFieldQueueLen -= 8u;
+            outCount++;
         }
         if (inRemaining == 0)
         {
@@ -177,7 +182,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 for (offset = 1; offset < historyLen; offset++)
                 {
                     matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
-                    length = lzs_match_len(inPtr, inPtr - offset);
+                    length = lzs_match_len(inPtr, inPtr - offset, matchMax);
                     if (length > best_length && length >= MIN_LENGTH)
                     {
                         best_offset = offset;
@@ -189,26 +194,30 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     }
                 }
                 /* Output */
-                bitFieldQueue <<= 1u;
-                bitFieldQueueLen++;
                 if (best_length == 0)
                 {
-                    /* Literal */
-                    bitFieldQueue <<= 8u;
-                    bitFieldQueue |= *inPtr++;
-                    bitFieldQueueLen += 8u;
-                    inRemaining--;
+                    /* Byte-literal */
+                    /* Leading 0 bit indicates offset/length token.
+                     * Following 8 bits are byte-literal. */
+                    bitFieldQueue <<= 9u;
+                    bitFieldQueue |= *inPtr;
+                    bitFieldQueueLen += 9u;
                     length = 1;
+                    LZS_DEBUG(("Literal %02X\n", *inPtr));
                 }
                 else
                 {
+                    LZS_DEBUG(("Best offset %"PRIuFAST16" length %"PRIuFAST8"\n", best_offset, best_length));
                     /* Offset/length token */
                     /* 1 bit indicates offset/length token */
-                    bitFieldQueue |= 1u;    
+                    bitFieldQueue <<= 1u;
+                    bitFieldQueueLen++;
+                    bitFieldQueue |= 1u;
                     /* Encode offset */
                     if (best_offset <= SHORT_OFFSET_MAX)
                     {
                         /* Short offset */
+                        LZS_DEBUG(("    Short offset %"PRIuFAST16"\n", best_offset));
                         bitFieldQueue <<= (1u + SHORT_OFFSET_BITS);
                         /* Initial 1 bit indicates short offset */
                         bitFieldQueue |= (1u << SHORT_OFFSET_BITS) | best_offset;
@@ -217,6 +226,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     else
                     {
                         /* Long offset */
+                        LZS_DEBUG(("    Long offset %"PRIuFAST16"\n", best_offset));
                         bitFieldQueue <<= (1u + LONG_OFFSET_BITS);
                         /* Initial 0 bit indicates long offset */
                         bitFieldQueue |= best_offset;
@@ -224,10 +234,11 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     }
                     /* Encode length */
                     length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
+                    LZS_DEBUG(("    Length %"PRIuFAST8"\n", length));
                     temp8 = length_width[length];
                     bitFieldQueue <<= temp8;
                     bitFieldQueue |= length_value[length];
-                    bitFieldQueueLen += temp8;     
+                    bitFieldQueueLen += temp8;
 
                     if (length == MAX_SHORT_LENGTH)
                     {
@@ -237,13 +248,13 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 break;
             case COMPRESS_EXTENDED:
                 matchMax = (inRemaining < MAX_EXTENDED_LENGTH) ? inRemaining : MAX_EXTENDED_LENGTH;
-                length = lzs_match_len(inPtr, inPtr - offset);
+                length = lzs_match_len(inPtr, inPtr - best_offset, matchMax);
 
                 /* Encode length */
                 bitFieldQueue <<= EXTENDED_LENGTH_BITS;
                 bitFieldQueue |= length;
                 bitFieldQueueLen += EXTENDED_LENGTH_BITS;
-                
+
                 if (length != MAX_EXTENDED_LENGTH)
                 {
                     state = COMPRESS_NORMAL;
@@ -274,6 +285,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         }
         *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8));
         bitFieldQueueLen -= 8u;
+        outCount++;
     }
     return outCount;
 }
@@ -282,12 +294,12 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
 /*
  * \brief Initialise incremental compression
  */
-void lzs_compress_init(CompressParameters_t * pParams)
+void lzs_compress_init(LzsCompressParameters_t * pParams)
 {
-    pParams->status = D_STATUS_NONE;
+    pParams->status = LZS_C_STATUS_NONE;
     pParams->bitFieldQueue = 0;
     pParams->bitFieldQueueLen = 0;
-    pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
+    pParams->state = LZS_COMPRESS_GET_TOKEN_TYPE;
     pParams->historyLatestIdx = 0;
     pParams->historySize = 0;
 }
@@ -301,7 +313,7 @@ void lzs_compress_init(CompressParameters_t * pParams)
  *
  * It will stop if/when it reaches the end of either the input or the output buffer.
  */
-size_t lzs_compress_incremental(CompressParameters_t * pParams, bool add_end_marker)
+size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)
 {
 
 }

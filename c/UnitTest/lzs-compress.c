@@ -18,6 +18,8 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
+
 
 /*****************************************************************************
  * Functions
@@ -27,9 +29,12 @@ int main(int argc, char **argv)
 {
     int in_fd;
     int out_fd;
-    int read_len;
-    uint8_t inBufferPtr = NULL;
-    uint8_t outBufferPtr = NULL;
+    struct stat stbuf;
+    ssize_t read_len;
+    uint8_t * inBufferPtr = NULL;
+    uint8_t * outBufferPtr = NULL;
+    ssize_t inBufferSize;
+    ssize_t outBufferSize;
     size_t  out_length;
 
     if (argc < 3)
@@ -50,10 +55,38 @@ int main(int argc, char **argv)
         exit(3);
     }
 
-    /* TODO: malloc for input and output buffers */
-    /* TODO: read all input data */
-    /* TODO: call lzs_compress() */
-    /* TODO: write compressed data to output file */
+    if ((fstat(in_fd, &stbuf) != 0) || (!S_ISREG(stbuf.st_mode)))
+    {
+        perror("fstat");
+        exit(4);
+    }
+
+    inBufferSize = stbuf.st_size;
+    inBufferPtr = (uint8_t *)malloc(inBufferSize);
+    if (inBufferPtr == NULL)
+    {
+        perror("malloc for input data");
+        exit(5);
+    }
+
+    outBufferSize = stbuf.st_size + (stbuf.st_size / 8) + 4;
+    outBufferPtr = (uint8_t *)malloc(outBufferSize);
+    if (outBufferPtr == NULL)
+    {
+        perror("malloc for output data");
+        exit(6);
+    }
+
+    read_len = read(in_fd, inBufferPtr, stbuf.st_size);
+    if (read_len != stbuf.st_size)
+    {
+        perror("read");
+        exit(7);
+    }
+
+    out_length = lzs_compress(outBufferPtr, outBufferSize, inBufferPtr, inBufferSize);
+
+    write(out_fd, outBufferPtr, out_length);
 
     return 0;
 }
