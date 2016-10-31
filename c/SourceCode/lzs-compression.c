@@ -31,7 +31,7 @@
 #define SHORT_OFFSET_MAX            ((1u << SHORT_OFFSET_BITS) - 1u)
 #define LONG_OFFSET_MAX             ((1u << LONG_OFFSET_BITS) - 1u)
 
-#if (MAX_HISTORY_SIZE < (1u << LONG_OFFSET_BITS))
+#if (MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
 #error MAX_HISTORY_SIZE is too small
 #endif
 
@@ -179,7 +179,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             case COMPRESS_NORMAL:
                 /* Look for a match in history */
                 best_length = 0;
-                for (offset = 1; offset < historyLen; offset++)
+                for (offset = 1; offset <= historyLen; offset++)
                 {
                     matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
                     length = lzs_match_len(inPtr, inPtr - offset, matchMax);
