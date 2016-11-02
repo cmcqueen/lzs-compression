@@ -97,7 +97,7 @@ typedef enum
  *  0b1110 --> 7
  *  0b1111 xxxx --> 8 (extended)
  */
-static const uint8_t length_value[] =
+static const uint8_t length_value[MAX_SHORT_LENGTH + 1u] =
 {
     0,
     0,
@@ -110,7 +110,7 @@ static const uint8_t length_value[] =
     0xF
 };
 
-static const uint8_t length_width[] =
+static const uint8_t length_width[MAX_SHORT_LENGTH + 1u] =
 {
     0,
     0,
@@ -313,32 +313,4 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         outCount++;
     }
     return outCount;
-}
-
-
-/*
- * \brief Initialise incremental compression
- */
-void lzs_compress_init(LzsCompressParameters_t * pParams)
-{
-    pParams->status = LZS_C_STATUS_NONE;
-    pParams->bitFieldQueue = 0;
-    pParams->bitFieldQueueLen = 0;
-    pParams->state = LZS_COMPRESS_GET_TOKEN_TYPE;
-    pParams->historyLatestIdx = 0;
-    pParams->historySize = 0;
-}
-
-
-/*
- * \brief Incremental compression
- *
- * State is kept between calls, so compression can be done gradually, and flexibly
- * depending on the application's needs for input/output buffer handling.
- *
- * It will stop if/when it reaches the end of either the input or the output buffer.
- */
-size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)
-{
-
 }
