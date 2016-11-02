@@ -42,21 +42,6 @@
 
 typedef enum
 {
-    LZS_COMPRESS_COPY_DATA,             // Must come before DECOMPRESS_GET_TOKEN_TYPE, so state transition can be done by increment
-    LZS_COMPRESS_GET_TOKEN_TYPE,
-    LZS_COMPRESS_GET_LITERAL,
-    LZS_COMPRESS_GET_OFFSET_TYPE,
-    LZS_COMPRESS_GET_OFFSET_SHORT,
-    LZS_COMPRESS_GET_OFFSET_LONG,
-    LZS_COMPRESS_GET_LENGTH,
-    LZS_COMPRESS_COPY_EXTENDED_DATA,    // Must come before DECOMPRESS_GET_EXTENDED_LENGTH, so state transition can be done by increment
-    LZS_COMPRESS_GET_EXTENDED_LENGTH,
-
-    NUM_COMPRESS_STATES
-} LzsCompressState_t;
-
-typedef enum
-{
     LZS_C_STATUS_NONE                   = 0x00,
     LZS_C_STATUS_INPUT_STARVED          = 0x01,
     LZS_C_STATUS_INPUT_FINISHED         = 0x02,
@@ -94,24 +79,9 @@ typedef struct
     uint_fast16_t       historySize;
     uint_fast16_t       offset;
     uint_fast8_t        length;
-    LzsCompressState_t  state;
+    uint_fast8_t        state;              // LzsCompressState_t
 } LzsCompressParameters_t;
 
-
-typedef enum
-{
-    DECOMPRESS_COPY_DATA,           // Must come before DECOMPRESS_GET_TOKEN_TYPE, so state transition can be done by increment
-    DECOMPRESS_GET_TOKEN_TYPE,
-    DECOMPRESS_GET_LITERAL,
-    DECOMPRESS_GET_OFFSET_TYPE,
-    DECOMPRESS_GET_OFFSET_SHORT,
-    DECOMPRESS_GET_OFFSET_LONG,
-    DECOMPRESS_GET_LENGTH,
-    DECOMPRESS_COPY_EXTENDED_DATA,  // Must come before DECOMPRESS_GET_EXTENDED_LENGTH, so state transition can be done by increment
-    DECOMPRESS_GET_EXTENDED_LENGTH,
-
-    NUM_DECOMPRESS_STATES
-} LzsDecompressState_t;
 
 typedef enum
 {
@@ -152,7 +122,7 @@ typedef struct
     uint_fast16_t           historySize;
     uint_fast16_t           offset;
     uint_fast8_t            length;
-    LzsDecompressState_t    state;
+    uint_fast8_t            state;              // LzsDecompressState_t
 } LzsDecompressParameters_t;
 
 

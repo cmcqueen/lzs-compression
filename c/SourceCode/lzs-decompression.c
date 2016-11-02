@@ -53,6 +53,32 @@
 
 
 /*****************************************************************************
+ * Typedefs
+ ****************************************************************************/
+
+typedef enum
+{
+    DECOMPRESS_NORMAL,
+    DECOMPRESS_EXTENDED
+} SimpleDecompressState_t;
+
+typedef enum
+{
+    DECOMPRESS_COPY_DATA,           // Must come before DECOMPRESS_GET_TOKEN_TYPE, so state transition can be done by increment
+    DECOMPRESS_GET_TOKEN_TYPE,
+    DECOMPRESS_GET_LITERAL,
+    DECOMPRESS_GET_OFFSET_TYPE,
+    DECOMPRESS_GET_OFFSET_SHORT,
+    DECOMPRESS_GET_OFFSET_LONG,
+    DECOMPRESS_GET_LENGTH,
+    DECOMPRESS_COPY_EXTENDED_DATA,  // Must come before DECOMPRESS_GET_EXTENDED_LENGTH, so state transition can be done by increment
+    DECOMPRESS_GET_EXTENDED_LENGTH,
+
+    NUM_DECOMPRESS_STATES
+} LzsDecompressState_t;
+
+
+/*****************************************************************************
  * Tables
  ****************************************************************************/
 
@@ -92,17 +118,6 @@ static const uint_fast8_t StateBitMinimumWidth[NUM_DECOMPRESS_STATES] =
     0,                          // DECOMPRESS_COPY_EXTENDED_DATA,
     LENGTH_MAX_BIT_WIDTH,       // DECOMPRESS_GET_EXTENDED_LENGTH,
 };
-
-
-/*****************************************************************************
- * Typedefs
- ****************************************************************************/
-
-typedef enum
-{
-    DECOMPRESS_NORMAL,
-    DECOMPRESS_EXTENDED
-} SimpleDecompressState_t;
 
 
 /*****************************************************************************

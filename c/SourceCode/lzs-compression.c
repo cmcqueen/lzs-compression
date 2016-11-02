@@ -59,6 +59,32 @@
 
 
 /*****************************************************************************
+ * Typedefs
+ ****************************************************************************/
+
+typedef enum
+{
+    COMPRESS_NORMAL,
+    COMPRESS_EXTENDED
+} SimpleCompressState_t;
+
+typedef enum
+{
+    LZS_COMPRESS_COPY_DATA,             // Must come before DECOMPRESS_GET_TOKEN_TYPE, so state transition can be done by increment
+    LZS_COMPRESS_GET_TOKEN_TYPE,
+    LZS_COMPRESS_GET_LITERAL,
+    LZS_COMPRESS_GET_OFFSET_TYPE,
+    LZS_COMPRESS_GET_OFFSET_SHORT,
+    LZS_COMPRESS_GET_OFFSET_LONG,
+    LZS_COMPRESS_GET_LENGTH,
+    LZS_COMPRESS_COPY_EXTENDED_DATA,    // Must come before DECOMPRESS_GET_EXTENDED_LENGTH, so state transition can be done by increment
+    LZS_COMPRESS_GET_EXTENDED_LENGTH,
+
+    NUM_COMPRESS_STATES
+} LzsCompressState_t;
+
+
+/*****************************************************************************
  * Tables
  ****************************************************************************/
 
@@ -96,17 +122,6 @@ static const uint8_t length_width[] =
     4,
     4,
 };
-
-
-/*****************************************************************************
- * Typedefs
- ****************************************************************************/
-
-typedef enum
-{
-    COMPRESS_NORMAL,
-    COMPRESS_EXTENDED
-} SimpleCompressState_t;
 
 
 /*****************************************************************************
