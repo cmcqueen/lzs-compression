@@ -297,7 +297,16 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                         // Now copy (offset, length) bytes
                         for (temp8 = 0; temp8 < length; temp8++)
                         {
-                            *outPtr = *(outPtr - offset);
+                            // Check offset is within range of valid history.
+                            // If it's not, then write zeros. Avoid information leak.
+                            if (outPtr - offset >= a_pOutData)
+                            {
+                                *outPtr = *(outPtr - offset);
+                            }
+                            else
+                            {
+                                *outPtr = 0;
+                            }
                             ++outPtr;
                             ++outCount;
 
@@ -323,7 +332,16 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                 // Now copy (offset, length) bytes
                 for (temp8 = 0; temp8 < length; temp8++)
                 {
-                    *outPtr = *(outPtr - offset);
+                    // Check offset is within range of valid history.
+                    // If it's not, then write zeros. Avoid information leak.
+                    if (outPtr - offset >= a_pOutData)
+                    {
+                        *outPtr = *(outPtr - offset);
+                    }
+                    else
+                    {
+                        *outPtr = 0;
+                    }
                     ++outPtr;
                     ++outCount;
 
