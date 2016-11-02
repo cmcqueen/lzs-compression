@@ -53,6 +53,10 @@ typedef struct
 {
     /*
      * These parameters should be set before calling the decompress_init(), and then not changed.
+     *
+     * Note: History buffer should be blanked at start, to avoid information leak in the case of
+     * invalid compressed data that has offset value pointing outside of valid decompressed data
+     * in the current decompression operation.
      */
     uint8_t           * historyPtr;         // Points to start of history buffer. Must be set at initialisation.
     uint_fast16_t       historyBufferSize;  // The size of the history buffer. Must be set at initialisation.

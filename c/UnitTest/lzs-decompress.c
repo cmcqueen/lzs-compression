@@ -54,6 +54,7 @@ int main(int argc, char **argv)
     }
 
     // Initialise
+    memset(history_buffer, 0, sizeof(history_buffer));
     decompress_params.historyPtr = history_buffer;
     decompress_params.historyBufferSize = sizeof(history_buffer);
     lzs_decompress_init(&decompress_params);
