@@ -668,8 +668,11 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                 break;
 
             default:
-                // TODO: It is an error if we ever get here. Need to do some handling.
+                // It is an error if we ever get here.
                 LZS_ASSERT(0);
+                // Reset state, although following output will probably be rubbish.
+                pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
+                pParams->status |= LZS_D_STATUS_ERROR;
                 break;
         }
     }

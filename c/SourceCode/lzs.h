@@ -93,7 +93,8 @@ typedef enum
     LZS_D_STATUS_INPUT_STARVED          = 0x01,
     LZS_D_STATUS_INPUT_FINISHED         = 0x02,
     LZS_D_STATUS_END_MARKER             = 0x04,
-    LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08
+    LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08,
+    LZS_D_STATUS_ERROR                  = 0x10
 } LzsDecompressStatus_t;
 
 typedef struct
