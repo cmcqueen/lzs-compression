@@ -20,10 +20,16 @@
 #include <unistd.h>
 
 
+#define MAX_EXPANSION       16
+
+
 /*****************************************************************************
  * Functions
  ****************************************************************************/
 
+#if 1
+
+// Use lzs_decompress_incremental()
 int main(int argc, char **argv)
 {
     int in_fd;
@@ -98,3 +104,87 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+#else
+
+// Use lzs_decompress()
+int main(int argc, char **argv)
+{
+    int in_fd;
+    int out_fd;
+    int read_len;
+    int total_read_len;
+    uint8_t in_buffer[16];
+    uint8_t * in_buffer_ptr;
+    uint8_t * out_buffer_ptr;
+    size_t  out_length;
+
+    if (argc < 3)
+    {
+        printf("Too few arguments\n");
+        exit(1);
+    }
+    in_fd = open(argv[1], O_RDONLY);
+    if (in_fd < 0)
+    {
+        perror("argv[1]");
+        exit(2);
+    }
+    out_fd = open(argv[2], O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if (out_fd < 0)
+    {
+        perror("argv[2]");
+        exit(3);
+    }
+
+    printf("get input len\n");
+    total_read_len = 0;
+    while (1)
+    {
+        read_len = read(in_fd, in_buffer, sizeof(in_buffer));
+        if (read_len <= 0)
+        {
+            break;
+        }
+        total_read_len += read_len;
+    }
+    close(in_fd);
+    printf("input len %d\n", total_read_len);
+
+    in_buffer_ptr = malloc(total_read_len);
+    if (in_buffer_ptr == NULL)
+    {
+        perror("malloc for in data");
+        exit(4);
+    }
+
+    out_buffer_ptr = malloc(total_read_len * MAX_EXPANSION);
+    if (out_buffer_ptr == NULL)
+    {
+        perror("malloc for out data");
+        exit(5);
+    }
+
+    in_fd = open(argv[1], O_RDONLY);
+    if (in_fd < 0)
+    {
+        perror("argv[1]");
+        exit(6);
+    }
+
+    read_len = read(in_fd, in_buffer_ptr, total_read_len);
+    if (read_len != total_read_len)
+    {
+        printf("mismatch in read len\n");
+        exit(7);
+    }
+
+    printf("decompress\n");
+    out_length = lzs_decompress(out_buffer_ptr, total_read_len * MAX_EXPANSION, in_buffer_ptr, total_read_len);
+    printf("decompress done\n");
+    write(out_fd, out_buffer_ptr, out_length);
+
+    return 0;
+}
+
+#endif
