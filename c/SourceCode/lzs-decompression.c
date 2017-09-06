@@ -61,6 +61,7 @@
 #endif
 
 #define LENGTH_MAX_BIT_WIDTH        4u
+#define MAX_INITIAL_LENGTH          8u      // keep in sync with lengthDecodeTable[]
 #define MAX_EXTENDED_LENGTH         15u
 
 #define LENGTH_DECODE_METHOD_CODE   0
@@ -105,7 +106,6 @@ typedef enum
  ****************************************************************************/
 
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_TABLE
-#define MAX_INITIAL_LENGTH          8u      // keep in sync with lengthDecodeTable[]
 
 static const uint8_t lengthDecodeTable[(1u << LENGTH_MAX_BIT_WIDTH)] =
 {
@@ -576,7 +576,29 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
             case DECOMPRESS_GET_LENGTH:
                 // Decode length and copy characters
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_CODE
-                // TODO: fill this in
+                /* Length is encoded as:
+                 *  0b00 --> 2
+                 *  0b01 --> 3
+                 *  0b10 --> 4
+                 *  0b1100 --> 5
+                 *  0b1101 --> 6
+                 *  0b1110 --> 7
+                 *  0b1111 xxxx --> 8 (extended)
+                 */
+                // Get 4 bits
+                temp8 = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - 4u));
+                if (temp8 < 0xC)    // 0xC is 0b1100
+                {
+                    // Length of 2, 3 or 4, encoded in 2 bits
+                    pParams->length = (temp8 >> 2u) + 2u;
+                    temp8 = 2u;
+                }
+                else
+                {
+                    // Length (encoded in 4 bits) of 5, 6, 7, or (8 + extended)
+                    pParams->length = (temp8 - 0xC + 5u);
+                    temp8 = 4u;
+                }
 #endif
 #if LENGTH_DECODE_METHOD == LENGTH_DECODE_METHOD_TABLE
                 // Get 4 bits, then look up decode data
