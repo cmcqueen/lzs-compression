@@ -63,8 +63,8 @@
 #define SHORT_OFFSET_MAX            ((1u << SHORT_OFFSET_BITS) - 1u)
 #define LONG_OFFSET_MAX             ((1u << LONG_OFFSET_BITS) - 1u)
 
-#if (MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
-#error MAX_HISTORY_SIZE is too small
+#if (LZS_MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
+#error LZS_MAX_HISTORY_SIZE is too small
 #endif
 
 #define LENGTH_MAX_BIT_WIDTH        4u
@@ -312,9 +312,9 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         inRemaining -= length;
 
         historyLen += length;
-        if (historyLen > MAX_HISTORY_SIZE)
+        if (historyLen > LZS_MAX_HISTORY_SIZE)
         {
-            historyLen = MAX_HISTORY_SIZE;
+            historyLen = LZS_MAX_HISTORY_SIZE;
         }
     }
     /* Make end marker, which is like a short offset with value 0, padded out

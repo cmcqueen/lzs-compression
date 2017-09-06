@@ -54,8 +54,8 @@
  * Defines
  ****************************************************************************/
 
-// MAX_HISTORY_SIZE is derived from LONG_OFFSET_BITS.
-#define MAX_HISTORY_SIZE            ((1u << 11u) - 1u)
+// LZS_MAX_HISTORY_SIZE is derived from LONG_OFFSET_BITS.
+#define LZS_MAX_HISTORY_SIZE        ((1u << 11u) - 1u)
 
 // Worst-case size of LZS compressed data, given input data of size X.
 // Worst case is 9/8 times original size, plus a couple of bytes for end marker.

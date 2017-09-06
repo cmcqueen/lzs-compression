@@ -56,8 +56,8 @@
 #define LONG_OFFSET_BITS            11u
 #define BIT_QUEUE_BITS              32u
 
-#if (MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
-#error MAX_HISTORY_SIZE is too small
+#if (LZS_MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
+#error LZS_MAX_HISTORY_SIZE is too small
 #endif
 
 #define LENGTH_MAX_BIT_WIDTH        4u

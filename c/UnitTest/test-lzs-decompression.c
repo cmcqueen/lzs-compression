@@ -101,7 +101,7 @@ static void test_decompress_1(const uint8_t * p_compressed_data, size_t len)
 static void test_decompress_incremental_all(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
-    uint8_t history_buffer[MAX_HISTORY_SIZE];
+    uint8_t history_buffer[LZS_MAX_HISTORY_SIZE];
     LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
@@ -141,7 +141,7 @@ static void test_decompress_incremental_all(const uint8_t * p_compressed_data, s
 static void test_decompress_incremental_input_bounded(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
-    uint8_t history_buffer[MAX_HISTORY_SIZE];
+    uint8_t history_buffer[LZS_MAX_HISTORY_SIZE];
     LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
@@ -188,7 +188,7 @@ static void test_decompress_incremental_input_bounded(const uint8_t * p_compress
 static void test_decompress_incremental_output_bounded(const uint8_t * p_compressed_data, size_t len)
 {
     uint8_t out_buffer[1000];
-    uint8_t history_buffer[MAX_HISTORY_SIZE];
+    uint8_t history_buffer[LZS_MAX_HISTORY_SIZE];
     LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
