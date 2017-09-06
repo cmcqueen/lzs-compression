@@ -150,7 +150,8 @@ static const uint_fast8_t StateBitMinimumWidth[NUM_DECOMPRESS_STATES] =
  * Single-call decompression
  *
  * No state is kept between calls. Decompression is expected to complete in a single call.
- * It will stop if/when it reaches the end of either the input or the output buffer.
+ * It will stop if/when it reaches the end of either the input or the output buffer,
+ * or when it reaches an end-marker.
  */
 size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
 {
@@ -254,10 +255,15 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                         if (offset == 0)
                         {
                             LZS_DEBUG(("End marker\n"));
+#if 1
+                            // Stop at end marker
+                            goto finish;
+#else
                             // Discard any bits that are fractions of a byte, to align with a byte boundary
                             temp8 = bitFieldQueueLen % 8u;
                             bitFieldQueue <<= temp8;
                             bitFieldQueueLen -= temp8;
+#endif
                         }
                     }
                     else
