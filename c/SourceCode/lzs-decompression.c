@@ -218,7 +218,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                     // Literal
                     if (bitFieldQueueLen < 8u)
                     {
-                        break;
+                        goto finish;
                     }
                     temp8 = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
                     bitFieldQueue <<= 8u;
@@ -236,7 +236,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                     // Decode offset
                     if (bitFieldQueueLen < 1u)
                     {
-                        break;
+                        goto finish;
                     }
                     temp8 = (bitFieldQueue & (1u << (BIT_QUEUE_BITS - 1u))) ? 1u : 0;
                     bitFieldQueue <<= 1u;
@@ -246,7 +246,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                         // Short offset
                         if (bitFieldQueueLen < SHORT_OFFSET_BITS)
                         {
-                            break;
+                            goto finish;
                         }
                         offset = bitFieldQueue >> (BIT_QUEUE_BITS - SHORT_OFFSET_BITS);
                         bitFieldQueue <<= SHORT_OFFSET_BITS;
@@ -265,7 +265,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                         // Long offset
                         if (bitFieldQueueLen < LONG_OFFSET_BITS)
                         {
-                            break;
+                            goto finish;
                         }
                         offset = bitFieldQueue >> (BIT_QUEUE_BITS - LONG_OFFSET_BITS);
                         bitFieldQueue <<= LONG_OFFSET_BITS;
@@ -291,7 +291,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                             // Length of 2, 3 or 4, encoded in 2 bits
                             if (bitFieldQueueLen < 2u)
                             {
-                                break;
+                                goto finish;
                             }
                             length = (temp8 >> 2u) + 2u;
                             bitFieldQueue <<= 2u;
@@ -302,7 +302,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                             // Length (encoded in 4 bits) of 5, 6, 7, or (8 + extended)
                             if (bitFieldQueueLen < 4u)
                             {
-                                break;
+                                goto finish;
                             }
                             length = (temp8 - 0xC + 5u);
                             bitFieldQueue <<= 4u;
@@ -325,7 +325,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                         temp8 &= 0xF;
                         if (bitFieldQueueLen < temp8)
                         {
-                            break;
+                            goto finish;
                         }
                         bitFieldQueue <<= temp8;
                         bitFieldQueueLen -= temp8;
@@ -354,7 +354,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
 
                             if (outCount >= a_outBufferSize)
                             {
-                                break;
+                                goto finish;
                             }
                         }
                     }
@@ -366,7 +366,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                 // Get 4 bits
                 if (bitFieldQueueLen < LENGTH_MAX_BIT_WIDTH)
                 {
-                    break;
+                    goto finish;
                 }
                 length = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - LENGTH_MAX_BIT_WIDTH));
                 bitFieldQueue <<= LENGTH_MAX_BIT_WIDTH;
@@ -389,7 +389,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
 
                     if (outCount >= a_outBufferSize)
                     {
-                        break;
+                        goto finish;
                     }
                 }
                 if (length != MAX_EXTENDED_LENGTH)
@@ -401,6 +401,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
         }
     }
 
+finish:
     return outCount;
 }
 
