@@ -335,7 +335,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                             state = DECOMPRESS_EXTENDED;
                         }
 #endif
-                        LZS_DEBUG(("(%d, %d)\n", offset, length));
+                        LZS_DEBUG(("(%u, %u)\n", offset, length));
                         // Now copy (offset, length) bytes
                         for (temp8 = 0; temp8 < length; temp8++)
                         {
@@ -651,7 +651,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     }
                     pParams->historyReadIdx = pParams->historyLatestIdx - offset;
 #endif
-                    LZS_DEBUG(("(%d, %d)\n", offset, pParams->length));
+                    LZS_DEBUG(("(%u, %u)\n", offset, pParams->length));
                 }
                 break;
 
