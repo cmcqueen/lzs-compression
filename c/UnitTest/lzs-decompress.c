@@ -20,9 +20,6 @@
 #include <unistd.h>
 
 
-#define MAX_EXPANSION       16
-
-
 /*****************************************************************************
  * Functions
  ****************************************************************************/
@@ -158,7 +155,7 @@ int main(int argc, char **argv)
         exit(4);
     }
 
-    out_buffer_ptr = malloc(total_read_len * MAX_EXPANSION);
+    out_buffer_ptr = malloc(LZS_DECOMPRESSED_MAX(total_read_len));
     if (out_buffer_ptr == NULL)
     {
         perror("malloc for out data");
@@ -180,7 +177,7 @@ int main(int argc, char **argv)
     }
 
     printf("decompress\n");
-    out_length = lzs_decompress(out_buffer_ptr, total_read_len * MAX_EXPANSION, in_buffer_ptr, total_read_len);
+    out_length = lzs_decompress(out_buffer_ptr, LZS_DECOMPRESSED_MAX(total_read_len), in_buffer_ptr, total_read_len);
     printf("decompress done\n");
     write(out_fd, out_buffer_ptr, out_length);
 
