@@ -18,6 +18,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 
 /*****************************************************************************
@@ -109,11 +110,12 @@ int main(int argc, char **argv)
 {
     int in_fd;
     int out_fd;
-    int read_len;
-    int total_read_len;
-    uint8_t in_buffer[16];
-    uint8_t * in_buffer_ptr;
-    uint8_t * out_buffer_ptr;
+    struct stat stbuf;
+    ssize_t read_len;
+    uint8_t * inBufferPtr = NULL;
+    uint8_t * outBufferPtr = NULL;
+    ssize_t inBufferSize;
+    ssize_t outBufferSize;
     size_t  out_length;
 
     if (argc < 3)
@@ -134,52 +136,38 @@ int main(int argc, char **argv)
         exit(3);
     }
 
-    printf("get input len\n");
-    total_read_len = 0;
-    while (1)
+    if ((fstat(in_fd, &stbuf) != 0) || (!S_ISREG(stbuf.st_mode)))
     {
-        read_len = read(in_fd, in_buffer, sizeof(in_buffer));
-        if (read_len <= 0)
-        {
-            break;
-        }
-        total_read_len += read_len;
-    }
-    close(in_fd);
-    printf("input len %d\n", total_read_len);
-
-    in_buffer_ptr = malloc(total_read_len);
-    if (in_buffer_ptr == NULL)
-    {
-        perror("malloc for in data");
+        perror("fstat");
         exit(4);
     }
 
-    out_buffer_ptr = malloc(LZS_DECOMPRESSED_MAX(total_read_len));
-    if (out_buffer_ptr == NULL)
+    inBufferSize = stbuf.st_size;
+    inBufferPtr = (uint8_t *)malloc(inBufferSize);
+    if (inBufferPtr == NULL)
     {
-        perror("malloc for out data");
+        perror("malloc for input data");
         exit(5);
     }
 
-    in_fd = open(argv[1], O_RDONLY);
-    if (in_fd < 0)
+    outBufferSize = LZS_DECOMPRESSED_MAX(stbuf.st_size);
+    outBufferPtr = (uint8_t *)malloc(outBufferSize);
+    if (outBufferPtr == NULL)
     {
-        perror("argv[1]");
+        perror("malloc for output data");
         exit(6);
     }
 
-    read_len = read(in_fd, in_buffer_ptr, total_read_len);
-    if (read_len != total_read_len)
+    read_len = read(in_fd, inBufferPtr, stbuf.st_size);
+    if (read_len != stbuf.st_size)
     {
-        printf("mismatch in read len\n");
+        perror("read");
         exit(7);
     }
 
-    printf("decompress\n");
-    out_length = lzs_decompress(out_buffer_ptr, LZS_DECOMPRESSED_MAX(total_read_len), in_buffer_ptr, total_read_len);
-    printf("decompress done\n");
-    write(out_fd, out_buffer_ptr, out_length);
+    out_length = lzs_decompress(outBufferPtr, outBufferSize, inBufferPtr, inBufferSize);
+
+    write(out_fd, outBufferPtr, out_length);
 
     return 0;
 }
