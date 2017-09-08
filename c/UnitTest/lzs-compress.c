@@ -69,7 +69,7 @@ int main(int argc, char **argv)
         exit(5);
     }
 
-    outBufferSize = stbuf.st_size + (stbuf.st_size / 8) + 4;
+    outBufferSize = LZS_COMPRESSED_MAX(stbuf.st_size);
     outBufferPtr = (uint8_t *)malloc(outBufferSize);
     if (outBufferPtr == NULL)
     {
