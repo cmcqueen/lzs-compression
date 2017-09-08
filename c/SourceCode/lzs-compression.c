@@ -161,6 +161,58 @@ static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * b
     return len;
 }
 
+static inline uint_fast8_t lzs_inc_match_len(const uint8_t * aPtr, LzsCompressParameters_t * pParams, uint_fast16_t offset, uint_fast8_t matchMax)
+{
+    uint_fast16_t   historyReadIdx;
+    const uint8_t * bPtr;
+    uint_fast8_t    len;
+
+
+#if 0
+    // This code is a "safe" version (no overflows as long as pParams->historyBufferSize < MAX_UINT16/2)
+    if (offset > pParams->historyLatestIdx)
+    {
+        historyReadIdx = pParams->historyLatestIdx + pParams->historyBufferSize - offset;
+    }
+    else
+    {
+        historyReadIdx = pParams->historyLatestIdx - offset;
+    }
+#else
+    // This code is simpler, but relies on calculation overflows wrapping as expected.
+    if (offset > pParams->historyLatestIdx)
+    {
+        // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
+        offset -= pParams->historyBufferSize;
+    }
+    historyReadIdx = pParams->historyLatestIdx - offset;
+#endif
+    bPtr = pParams->historyPtr + historyReadIdx;
+    for (len = 0; len < matchMax; )
+    {
+        if (*aPtr++ != *bPtr++)
+        {
+            return len;
+        }
+        ++len;
+        if (len < offset)
+        {
+            ++historyReadIdx;
+            if (historyReadIdx >= pParams->historyBufferSize)
+            {
+                historyReadIdx = 0;
+                bPtr = pParams->historyPtr;
+            }
+        }
+        else if (len == offset)
+        {
+            // We're no longer looking in history, but looking ahead into incoming data.
+            bPtr = aPtr - len;
+        }
+    }
+    return len;
+}
+
 
 /*****************************************************************************
  * Functions
@@ -427,11 +479,13 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
 
                 // Look for a match in history.
                 best_length = 0;
+                //matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
+                matchMax = LZS_SEARCH_MATCH_MAX;
                 for (offset = 1; offset <= pParams->historyLen; offset++)
                 {
-                    //matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
-                    matchMax = LZS_SEARCH_MATCH_MAX;
-                    length = lzs_match_len(inPtr, inPtr - offset, matchMax);
+                    length = lzs_inc_match_len(pParams->inSearchBuffer,
+                                                pParams,
+                                                offset, matchMax);
                     if (length > best_length && length >= MIN_LENGTH)
                     {
                         best_offset = offset;
