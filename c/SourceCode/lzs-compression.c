@@ -183,7 +183,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     size_t              inRemaining;        // Count of remaining bytes of input
     size_t              outCount;           // Count of output bytes that have been generated
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left.
-    int_fast8_t         bitFieldQueueLen;
+    uint_fast8_t        bitFieldQueueLen;
     uint_fast16_t       offset;
     uint_fast8_t        matchMax;
     uint_fast8_t        length;
@@ -211,7 +211,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             {
                 return outCount;
             }
-            *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8));
+            *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8u));
             bitFieldQueueLen -= 8u;
             outCount++;
         }
@@ -226,9 +226,9 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             case COMPRESS_NORMAL:
                 /* Look for a match in history */
                 best_length = 0;
+                matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
                 for (offset = 1; offset <= historyLen; offset++)
                 {
-                    matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
                     length = lzs_match_len(inPtr, inPtr - offset, matchMax);
                     if (length > best_length && length >= MIN_LENGTH)
                     {
@@ -330,7 +330,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         {
             return outCount;
         }
-        *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8));
+        *outPtr++ = (bitFieldQueue >> (bitFieldQueueLen - 8u));
         bitFieldQueueLen -= 8u;
         outCount++;
     }

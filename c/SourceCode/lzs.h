@@ -107,7 +107,7 @@ typedef struct
      * These are private members, and should not be changed.
      */
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
-    int_fast8_t         bitFieldQueueLen;   // Number of bits in the queue
+    uint_fast8_t        bitFieldQueueLen;   // Number of bits in the queue
     uint_fast16_t       historyReadIdx;
     uint_fast16_t       historyLatestIdx;
     uint_fast16_t       historySize;
