@@ -150,10 +150,11 @@ static const uint8_t length_width[MAX_SHORT_LENGTH + 1u] =
  * Inline Functions
  ****************************************************************************/
 
-static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, int_fast8_t matchMax)
+static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, uint_fast8_t matchMax)
 {
     uint_fast8_t    len;
-    
+
+
     for (len = 0; len < matchMax; len++)
     {
         if (*aPtr++ != *bPtr++)
