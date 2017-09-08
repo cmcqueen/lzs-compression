@@ -464,7 +464,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
         {
             // It is an error if we ever get here.
             LZS_ASSERT(0);
-            pParams->status |= LZS_D_STATUS_INPUT_FINISHED | LZS_D_STATUS_INPUT_STARVED;
+            pParams->status |= LZS_D_STATUS_ERROR | LZS_D_STATUS_INPUT_FINISHED | LZS_D_STATUS_INPUT_STARVED;
         }
         // Check if we have enough input data to do something useful
         if (pParams->bitFieldQueueLen < StateBitMinimumWidth[pParams->state])
