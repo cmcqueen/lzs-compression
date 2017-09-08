@@ -79,6 +79,10 @@
 
 #define LZS_ASSERT(X)
 
+#if LZS_SEARCH_BUF_LEN < MAX_SHORT_LENGTH || LZS_SEARCH_BUF_LEN < MAX_EXTENDED_LENGTH || LZS_SEARCH_BUF_LEN < LZS_SEARCH_MATCH_MAX
+#error LZS_SEARCH_BUF_LEN is too small
+#endif
+
 
 /*****************************************************************************
  * Typedefs
@@ -92,15 +96,7 @@ typedef enum
 
 typedef enum
 {
-    LZS_COMPRESS_COPY_DATA,             // Must come before DECOMPRESS_GET_TOKEN_TYPE, so state transition can be done by increment
-    LZS_COMPRESS_GET_TOKEN_TYPE,
-    LZS_COMPRESS_GET_LITERAL,
-    LZS_COMPRESS_GET_OFFSET_TYPE,
-    LZS_COMPRESS_GET_OFFSET_SHORT,
-    LZS_COMPRESS_GET_OFFSET_LONG,
-    LZS_COMPRESS_GET_LENGTH,
-    LZS_COMPRESS_COPY_EXTENDED_DATA,    // Must come before DECOMPRESS_GET_EXTENDED_LENGTH, so state transition can be done by increment
-    LZS_COMPRESS_GET_EXTENDED_LENGTH,
+    COMPRESS_SEARCH,
 
     NUM_COMPRESS_STATES
 } LzsCompressState_t;
@@ -336,4 +332,117 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         outCount++;
     }
     return outCount;
+}
+
+/*
+ * \brief Initialise incremental compression
+ */
+void lzs_compress_init(LzsCompressParameters_t * pParams)
+{
+    pParams->status = LZS_C_STATUS_NONE;
+
+    pParams->inSearchBufferLen = 0;
+    pParams->bitFieldQueue = 0;
+    pParams->bitFieldQueueLen = 0;
+    pParams->state = COMPRESS_SEARCH;
+    pParams->historyLatestIdx = 0;
+    pParams->historySize = 0;
+    pParams->historyLen = 0;
+}
+
+size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)
+{
+    size_t              outCount;           // Count of output bytes that have been generated
+    uint_fast16_t       offset;
+    uint_fast8_t        matchMax;
+    uint_fast8_t        length;
+    uint_fast16_t       best_offset;
+    uint_fast8_t        best_length;
+    uint_fast8_t        temp8;
+
+
+    pParams->status = LZS_C_STATUS_NONE;
+    outCount = 0;
+
+    for (;;)
+    {
+        // Write data from the bit field queue to output
+        while (pParams->bitFieldQueueLen >= 8u)
+        {
+            // Check if we have space in the output buffer
+            if (pParams->outLength == 0)
+            {
+                // We're out of space in the output buffer.
+                // Set status, exit this inner copying loop, but maintain the current state.
+                pParams->status |= LZS_C_STATUS_NO_OUTPUT_BUFFER_SPACE;
+                break;
+            }
+            *pParams->outPtr++ = (pParams->bitFieldQueue >> (pParams->bitFieldQueueLen - 8u));
+            pParams->bitFieldQueueLen -= 8u;
+            ++outCount;
+        }
+        // Check if we've reached the end of our input data
+        if (pParams->inLength == 0)
+        {
+            pParams->status |= LZS_C_STATUS_INPUT_FINISHED | LZS_C_STATUS_INPUT_STARVED;
+        }
+        if (pParams->bitFieldQueueLen > BIT_QUEUE_BITS)
+        {
+            // It is an error if we ever get here.
+            LZS_ASSERT(0);
+            pParams->status |= LZS_C_STATUS_ERROR | LZS_C_STATUS_NO_OUTPUT_BUFFER_SPACE;
+        }
+
+        // Check if we need to finish for whatever reason
+        if (pParams->status != LZS_C_STATUS_NONE)
+        {
+            // Break out of the top-level loop
+            break;
+        }
+
+        // Process input data in a state machine
+        switch (pParams->state)
+        {
+            case COMPRESS_SEARCH:
+                // Try to fill inSearchBuffer
+                temp8 = LZS_SEARCH_BUF_LEN - pParams->inSearchBufferLen;
+                if (temp8 > pParams->inLength)
+                {
+                    temp8 = pParams->inLength;
+                }
+                if (temp8)
+                {
+                    memcpy(pParams->inSearchBuffer + pParams->inSearchBufferLen,
+                            pParams->inPtr,
+                            temp8);
+                    pParams->inSearchBufferLen += temp8;
+                    pParams->inLength -= temp8;
+                }
+                if (pParams->inSearchBufferLen < MAX_SHORT_LENGTH || pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX)
+                {
+                    // We don't have enough input data, so we're done for now.
+                    pParams->status |= LZS_C_STATUS_INPUT_STARVED;
+                    break;
+                }
+
+                // Look for a match in history.
+                best_length = 0;
+                for (offset = 1; offset <= pParams->historyLen; offset++)
+                {
+                    //matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
+                    matchMax = LZS_SEARCH_MATCH_MAX;
+                    length = lzs_match_len(inPtr, inPtr - offset, matchMax);
+                    if (length > best_length && length >= MIN_LENGTH)
+                    {
+                        best_offset = offset;
+                        best_length = length;
+                        if (length >= LZS_SEARCH_MATCH_MAX)
+                        {
+                            break;
+                        }
+                    }
+                }
+                break;
+        }
+    }
 }

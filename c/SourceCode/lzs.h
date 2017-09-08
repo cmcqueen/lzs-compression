@@ -51,7 +51,7 @@
 
 
 /*****************************************************************************
- * Defines
+ * API Defines
  ****************************************************************************/
 
 // LZS_MAX_HISTORY_SIZE is derived from LONG_OFFSET_BITS.
@@ -67,6 +67,13 @@
 
 
 /*****************************************************************************
+ * Implementation Defines
+ ****************************************************************************/
+
+#define LZS_SEARCH_BUF_LEN     15u
+
+
+/*****************************************************************************
  * Typedefs
  ****************************************************************************/
 
@@ -76,7 +83,8 @@ typedef enum
     LZS_C_STATUS_INPUT_STARVED          = 0x01,
     LZS_C_STATUS_INPUT_FINISHED         = 0x02,
     LZS_C_STATUS_END_MARKER             = 0x04,
-    LZS_C_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08
+    LZS_C_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08,
+    LZS_C_STATUS_ERROR                  = 0x10
 } LzsCompressStatus_t;
 
 typedef struct
@@ -106,10 +114,13 @@ typedef struct
     /*
      * These are private members, and should not be changed.
      */
+    uint8_t             inSearchBuffer[LZS_SEARCH_BUF_LEN];
+    uint8_t             inSearchBufferLen;
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
     uint_fast8_t        bitFieldQueueLen;   // Number of bits in the queue
     uint_fast16_t       historyReadIdx;
     uint_fast16_t       historyLatestIdx;
+    uint_fast16_t       historyLen;
     uint_fast16_t       historySize;
     uint_fast16_t       offset;
     uint_fast8_t        length;
