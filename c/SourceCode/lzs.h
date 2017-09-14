@@ -121,7 +121,6 @@ typedef struct
     uint_fast16_t       historyReadIdx;
     uint_fast16_t       historyLatestIdx;
     uint_fast16_t       historyLen;
-    uint_fast16_t       historySize;
     uint_fast16_t       offset;
     uint_fast8_t        length;
     uint_fast8_t        state;              // LzsCompressState_t

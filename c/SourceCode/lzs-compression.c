@@ -50,6 +50,8 @@
 //#include <inttypes.h>
 //#include <stdio.h>
 
+#include <string.h>
+
 
 /*****************************************************************************
  * Defines
@@ -357,6 +359,8 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 }
                 break;
         }
+        // 'length' contains number of input bytes encoded.
+        // Update inPtr and inRemaining accordingly.
         inPtr += length;
         inRemaining -= length;
 
@@ -398,7 +402,6 @@ void lzs_compress_init(LzsCompressParameters_t * pParams)
     pParams->bitFieldQueueLen = 0;
     pParams->state = COMPRESS_SEARCH;
     pParams->historyLatestIdx = 0;
-    pParams->historySize = 0;
     pParams->historyLen = 0;
 }
 
@@ -430,6 +433,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 break;
             }
             *pParams->outPtr++ = (pParams->bitFieldQueue >> (pParams->bitFieldQueueLen - 8u));
+            pParams->outLength--;
             pParams->bitFieldQueueLen -= 8u;
             ++outCount;
         }
@@ -455,19 +459,22 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         // Process input data in a state machine
         switch (pParams->state)
         {
-            case COMPRESS_SEARCH:
+            case COMPRESS_NORMAL:
                 // Try to fill inSearchBuffer
                 temp8 = LZS_SEARCH_BUF_LEN - pParams->inSearchBufferLen;
                 if (temp8 > pParams->inLength)
                 {
                     temp8 = pParams->inLength;
                 }
+                // temp8 holds number of bytes that can be copied from input to inSearchBuffer[].
+                // Copy that number of bytes from input into inSearchBuffer[].
                 if (temp8)
                 {
                     memcpy(pParams->inSearchBuffer + pParams->inSearchBufferLen,
                             pParams->inPtr,
                             temp8);
                     pParams->inSearchBufferLen += temp8;
+                    pParams->inPtr += temp8;
                     pParams->inLength -= temp8;
                 }
                 if (pParams->inSearchBufferLen < MAX_SHORT_LENGTH || pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX)
@@ -480,7 +487,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 // Look for a match in history.
                 best_length = 0;
                 //matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
-                matchMax = LZS_SEARCH_MATCH_MAX;
+                matchMax = pParams->inSearchBufferLen;
                 for (offset = 1; offset <= pParams->historyLen; offset++)
                 {
                     length = lzs_inc_match_len(pParams->inSearchBuffer,
@@ -496,7 +503,89 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                         }
                     }
                 }
+                /* Output */
+                if (best_length == 0)
+                {
+                    /* Byte-literal */
+                    /* Leading 0 bit indicates offset/length token.
+                     * Following 8 bits are byte-literal. */
+                    pParams->bitFieldQueue <<= 9u;
+                    pParams->bitFieldQueue |= *pParams->inSearchBuffer;
+                    pParams->bitFieldQueueLen += 9u;
+                    length = 1;
+                    LZS_DEBUG(("Literal %02X\n", *pParams->inSearchBuffer));
+                }
+                else
+                {
+                    LZS_DEBUG(("Best offset %"PRIuFAST16" length %"PRIuFAST8"\n", best_offset, best_length));
+                    /* Offset/length token */
+                    /* 1 bit indicates offset/length token */
+                    pParams->bitFieldQueue <<= 1u;
+                    pParams->bitFieldQueueLen++;
+                    pParams->bitFieldQueue |= 1u;
+                    /* Encode offset */
+                    if (best_offset <= SHORT_OFFSET_MAX)
+                    {
+                        /* Short offset */
+                        LZS_DEBUG(("    Short offset %"PRIuFAST16"\n", best_offset));
+                        pParams->bitFieldQueue <<= (1u + SHORT_OFFSET_BITS);
+                        /* Initial 1 bit indicates short offset */
+                        pParams->bitFieldQueue |= (1u << SHORT_OFFSET_BITS) | best_offset;
+                        pParams->bitFieldQueueLen += (1u + SHORT_OFFSET_BITS);
+                    }
+                    else
+                    {
+                        /* Long offset */
+                        LZS_DEBUG(("    Long offset %"PRIuFAST16"\n", best_offset));
+                        pParams->bitFieldQueue <<= (1u + LONG_OFFSET_BITS);
+                        /* Initial 0 bit indicates long offset */
+                        pParams->bitFieldQueue |= best_offset;
+                        pParams->bitFieldQueueLen += (1u + LONG_OFFSET_BITS);
+                    }
+                    /* Encode length */
+                    length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
+                    LZS_DEBUG(("    Length %"PRIuFAST8"\n", length));
+                    temp8 = length_width[length];
+                    pParams->bitFieldQueue <<= temp8;
+                    pParams->bitFieldQueue |= length_value[length];
+                    pParams->bitFieldQueueLen += temp8;
+
+                    if (length == MAX_SHORT_LENGTH)
+                    {
+                        pParams->state = COMPRESS_EXTENDED;
+                    }
+                }
+                break;
+            case COMPRESS_EXTENDED:
+                pParams->state = COMPRESS_NORMAL;
                 break;
         }
+        // 'length' contains number of input bytes encoded.
+        // Copy 'length' input bytes into history buffer.
+        for (temp8 = 0; temp8 < length; temp8++)
+        {
+            pParams->historyPtr[pParams->historyLatestIdx] = pParams->inSearchBuffer[temp8];
+
+            pParams->historyLatestIdx++;
+            if (pParams->historyLatestIdx >= pParams->historyBufferSize)
+            {
+                pParams->historyLatestIdx = 0;
+            }
+        }
+        pParams->historyLen += length;
+        if (pParams->historyLen > LZS_MAX_HISTORY_SIZE)
+        {
+            pParams->historyLen = LZS_MAX_HISTORY_SIZE;
+        }
+        // Consume 'length' input bytes in inSearchBuffer[].
+        if (length != 0 && length != pParams->inSearchBufferLen)
+        {
+            memmove(pParams->inSearchBuffer,
+                    pParams->inSearchBuffer + length,
+                    pParams->inSearchBufferLen - length);
+        }
+        pParams->inSearchBufferLen -= length;
     }
+
+    return outCount;
 }
