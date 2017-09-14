@@ -347,6 +347,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             case COMPRESS_EXTENDED:
                 matchMax = (inRemaining < MAX_EXTENDED_LENGTH) ? inRemaining : MAX_EXTENDED_LENGTH;
                 length = lzs_match_len(inPtr, inPtr - best_offset, matchMax);
+                LZS_DEBUG(("    Extended length %"PRIuFAST8"\n", length));
 
                 /* Encode length */
                 bitFieldQueue <<= EXTENDED_LENGTH_BITS;
@@ -457,6 +458,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         }
 
         // Process input data in a state machine
+        length = 0;
         switch (pParams->state)
         {
             case COMPRESS_NORMAL:
@@ -552,12 +554,50 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
 
                     if (length == MAX_SHORT_LENGTH)
                     {
+                        pParams->offset = best_offset;
                         pParams->state = COMPRESS_EXTENDED;
                     }
                 }
                 break;
             case COMPRESS_EXTENDED:
-                pParams->state = COMPRESS_NORMAL;
+                // Try to fill inSearchBuffer
+                temp8 = LZS_SEARCH_BUF_LEN - pParams->inSearchBufferLen;
+                if (temp8 > pParams->inLength)
+                {
+                    temp8 = pParams->inLength;
+                }
+                // temp8 holds number of bytes that can be copied from input to inSearchBuffer[].
+                // Copy that number of bytes from input into inSearchBuffer[].
+                if (temp8)
+                {
+                    memcpy(pParams->inSearchBuffer + pParams->inSearchBufferLen,
+                            pParams->inPtr,
+                            temp8);
+                    pParams->inSearchBufferLen += temp8;
+                    pParams->inPtr += temp8;
+                    pParams->inLength -= temp8;
+                }
+                if (pParams->inSearchBufferLen < MAX_EXTENDED_LENGTH)
+                {
+                    // We don't have enough input data, so we're done for now.
+                    pParams->status |= LZS_C_STATUS_INPUT_STARVED;
+                    break;
+                }
+                matchMax = (pParams->inSearchBufferLen < MAX_EXTENDED_LENGTH) ? pParams->inSearchBufferLen : MAX_EXTENDED_LENGTH;
+                length = lzs_inc_match_len(pParams->inSearchBuffer,
+                                            pParams,
+                                            pParams->offset, matchMax);
+                LZS_DEBUG(("    Extended length %"PRIuFAST8"\n", length));
+
+                /* Encode length */
+                pParams->bitFieldQueue <<= EXTENDED_LENGTH_BITS;
+                pParams->bitFieldQueue |= length;
+                pParams->bitFieldQueueLen += EXTENDED_LENGTH_BITS;
+
+                if (length != MAX_EXTENDED_LENGTH)
+                {
+                    pParams->state = COMPRESS_NORMAL;
+                }
                 break;
         }
         // 'length' contains number of input bytes encoded.
