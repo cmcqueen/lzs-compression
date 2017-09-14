@@ -457,28 +457,29 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
             break;
         }
 
+        // Try to fill inSearchBuffer
+        temp8 = LZS_SEARCH_BUF_LEN - pParams->inSearchBufferLen;
+        if (temp8 > pParams->inLength)
+        {
+            temp8 = pParams->inLength;
+        }
+        // temp8 holds number of bytes that can be copied from input to inSearchBuffer[].
+        // Copy that number of bytes from input into inSearchBuffer[].
+        if (temp8)
+        {
+            memcpy(pParams->inSearchBuffer + pParams->inSearchBufferLen,
+                    pParams->inPtr,
+                    temp8);
+            pParams->inSearchBufferLen += temp8;
+            pParams->inPtr += temp8;
+            pParams->inLength -= temp8;
+        }
+
         // Process input data in a state machine
         length = 0;
         switch (pParams->state)
         {
             case COMPRESS_NORMAL:
-                // Try to fill inSearchBuffer
-                temp8 = LZS_SEARCH_BUF_LEN - pParams->inSearchBufferLen;
-                if (temp8 > pParams->inLength)
-                {
-                    temp8 = pParams->inLength;
-                }
-                // temp8 holds number of bytes that can be copied from input to inSearchBuffer[].
-                // Copy that number of bytes from input into inSearchBuffer[].
-                if (temp8)
-                {
-                    memcpy(pParams->inSearchBuffer + pParams->inSearchBufferLen,
-                            pParams->inPtr,
-                            temp8);
-                    pParams->inSearchBufferLen += temp8;
-                    pParams->inPtr += temp8;
-                    pParams->inLength -= temp8;
-                }
                 if (pParams->inSearchBufferLen < MAX_SHORT_LENGTH || pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX)
                 {
                     // We don't have enough input data, so we're done for now.
@@ -514,7 +515,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     pParams->bitFieldQueue <<= 9u;
                     pParams->bitFieldQueue |= *pParams->inSearchBuffer;
                     pParams->bitFieldQueueLen += 9u;
-                    length = 1;
+                    length = 1u;
                     LZS_DEBUG(("Literal %02X\n", *pParams->inSearchBuffer));
                 }
                 else
@@ -560,29 +561,14 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 }
                 break;
             case COMPRESS_EXTENDED:
-                // Try to fill inSearchBuffer
-                temp8 = LZS_SEARCH_BUF_LEN - pParams->inSearchBufferLen;
-                if (temp8 > pParams->inLength)
-                {
-                    temp8 = pParams->inLength;
-                }
-                // temp8 holds number of bytes that can be copied from input to inSearchBuffer[].
-                // Copy that number of bytes from input into inSearchBuffer[].
-                if (temp8)
-                {
-                    memcpy(pParams->inSearchBuffer + pParams->inSearchBufferLen,
-                            pParams->inPtr,
-                            temp8);
-                    pParams->inSearchBufferLen += temp8;
-                    pParams->inPtr += temp8;
-                    pParams->inLength -= temp8;
-                }
                 if (pParams->inSearchBufferLen < MAX_EXTENDED_LENGTH)
                 {
                     // We don't have enough input data, so we're done for now.
                     pParams->status |= LZS_C_STATUS_INPUT_STARVED;
                     break;
                 }
+
+                // Get next length of extended match.
                 matchMax = (pParams->inSearchBufferLen < MAX_EXTENDED_LENGTH) ? pParams->inSearchBufferLen : MAX_EXTENDED_LENGTH;
                 length = lzs_inc_match_len(pParams->inSearchBuffer,
                                             pParams,
