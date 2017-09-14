@@ -438,11 +438,6 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
             pParams->bitFieldQueueLen -= 8u;
             ++outCount;
         }
-        // Check if we've reached the end of our input data
-        if (pParams->inLength == 0)
-        {
-            pParams->status |= LZS_C_STATUS_INPUT_FINISHED | LZS_C_STATUS_INPUT_STARVED;
-        }
         if (pParams->bitFieldQueueLen > BIT_QUEUE_BITS)
         {
             // It is an error if we ever get here.
@@ -455,6 +450,15 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         {
             // Break out of the top-level loop
             break;
+        }
+        // Check if we've reached the end of our input data
+        if (pParams->inLength == 0)
+        {
+            pParams->status |= LZS_C_STATUS_INPUT_FINISHED | LZS_C_STATUS_INPUT_STARVED;
+            if (add_end_marker == false)
+            {
+                break;
+            }
         }
 
         // Try to fill inSearchBuffer
@@ -480,11 +484,14 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         switch (pParams->state)
         {
             case COMPRESS_NORMAL:
-                if (pParams->inSearchBufferLen < MAX_SHORT_LENGTH || pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX)
+                if (add_end_marker == false)
                 {
-                    // We don't have enough input data, so we're done for now.
-                    pParams->status |= LZS_C_STATUS_INPUT_STARVED;
-                    break;
+                    if (pParams->inSearchBufferLen < MAX_SHORT_LENGTH || pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX)
+                    {
+                        // We don't have enough input data, so we're done for now.
+                        pParams->status |= LZS_C_STATUS_INPUT_STARVED;
+                        break;
+                    }
                 }
 
                 // Look for a match in history.
@@ -561,11 +568,14 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 }
                 break;
             case COMPRESS_EXTENDED:
-                if (pParams->inSearchBufferLen < MAX_EXTENDED_LENGTH)
+                if (add_end_marker == false)
                 {
-                    // We don't have enough input data, so we're done for now.
-                    pParams->status |= LZS_C_STATUS_INPUT_STARVED;
-                    break;
+                    if (pParams->inSearchBufferLen < MAX_EXTENDED_LENGTH)
+                    {
+                        // We don't have enough input data, so we're done for now.
+                        pParams->status |= LZS_C_STATUS_INPUT_STARVED;
+                        break;
+                    }
                 }
 
                 // Get next length of extended match.
@@ -611,6 +621,30 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     pParams->inSearchBufferLen - length);
         }
         pParams->inSearchBufferLen -= length;
+    }
+
+    if (add_end_marker &&
+        pParams->inLength == 0 &&
+        pParams->inSearchBufferLen == 0 &&
+        pParams->bitFieldQueueLen < 8u &&
+        pParams->outLength >= (pParams->bitFieldQueueLen + 2u + SHORT_OFFSET_BITS + 7u) / 8u)
+    {
+        /* Make end marker, which is like a short offset with value 0, padded out
+         * with 0 to 7 extra zeros to reach a byte boundary. That is,
+         * 0b110000000 */
+        pParams->bitFieldQueue <<= (2u + SHORT_OFFSET_BITS + 7u);
+        pParams->bitFieldQueueLen += (2u + SHORT_OFFSET_BITS + 7u);
+        pParams->bitFieldQueue |= (3u << (SHORT_OFFSET_BITS + 7u));
+        /* Copy output bits to output buffer */
+        while (pParams->bitFieldQueueLen >= 8u)
+        {
+            *pParams->outPtr++ = (pParams->bitFieldQueue >> (pParams->bitFieldQueueLen - 8u));
+            pParams->outLength--;
+            pParams->bitFieldQueueLen -= 8u;
+            ++outCount;
+        }
+        pParams->bitFieldQueueLen = 0;
+        pParams->status |= LZS_C_STATUS_END_MARKER;
     }
 
     return outCount;
