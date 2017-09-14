@@ -25,6 +25,86 @@
  * Functions
  ****************************************************************************/
 
+#if 1
+
+// Use lzs_compress_incremental()
+int main(int argc, char **argv)
+{
+    int in_fd;
+    int out_fd;
+    int read_len;
+    uint8_t in_buffer[16];
+    uint8_t out_buffer[16];
+    uint8_t history_buffer[LZS_MAX_HISTORY_SIZE];
+    LzsCompressParameters_t compress_params;
+    size_t  out_length;
+
+    if (argc < 3)
+    {
+        printf("Too few arguments\n");
+        exit(1);
+    }
+    in_fd = open(argv[1], O_RDONLY);
+    if (in_fd < 0)
+    {
+        perror("argv[1]");
+        exit(2);
+    }
+    out_fd = open(argv[2], O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if (out_fd < 0)
+    {
+        perror("argv[2]");
+        exit(3);
+    }
+
+    // Initialise
+    memset(history_buffer, 0, sizeof(history_buffer));
+    compress_params.historyPtr = history_buffer;
+    compress_params.historyBufferSize = sizeof(history_buffer);
+    lzs_compress_init(&compress_params);
+
+    // Compress bounded by input buffer size
+    compress_params.inPtr = in_buffer;
+    compress_params.inLength = 0;
+    compress_params.outPtr = out_buffer;
+    compress_params.outLength = sizeof(out_buffer);
+    while (1)
+    {
+        if (compress_params.inLength == 0)
+        {
+            read_len = read(in_fd, in_buffer, sizeof(in_buffer));
+            if (read_len > 0)
+            {
+                compress_params.inPtr = in_buffer;
+                compress_params.inLength = read_len;
+            }
+        }
+        if (
+                (compress_params.inLength == 0) &&
+                ((compress_params.status & LZS_C_STATUS_INPUT_STARVED) != 0)
+           )
+        {
+            break;
+        }
+
+        out_length = lzs_compress_incremental(&compress_params, false);
+        if (out_length)
+        {
+            write(out_fd, compress_params.outPtr - out_length, out_length);
+            compress_params.outPtr = out_buffer;
+            compress_params.outLength = sizeof(out_buffer);
+        }
+        if ((compress_params.status & ~(LZS_C_STATUS_INPUT_STARVED | LZS_C_STATUS_INPUT_FINISHED)) != 0)
+        {
+            printf("Exit with status %02X\n", compress_params.status);
+        }
+    }
+
+    return 0;
+}
+
+#else
+
 int main(int argc, char **argv)
 {
     int in_fd;
@@ -90,3 +170,5 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+#endif
