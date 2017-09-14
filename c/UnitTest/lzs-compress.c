@@ -38,6 +38,7 @@ int main(int argc, char **argv)
     uint8_t history_buffer[LZS_MAX_HISTORY_SIZE];
     LzsCompressParameters_t compress_params;
     size_t  out_length;
+    bool    finish = false;
 
     if (argc < 3)
     {
@@ -68,9 +69,10 @@ int main(int argc, char **argv)
     compress_params.inLength = 0;
     compress_params.outPtr = out_buffer;
     compress_params.outLength = sizeof(out_buffer);
-    while (1)
+    finish = false;
+    while ((compress_params.status & LZS_C_STATUS_END_MARKER) == 0)
     {
-        if (compress_params.inLength == 0)
+        if (compress_params.inLength == 0 && finish == false)
         {
             read_len = read(in_fd, in_buffer, sizeof(in_buffer));
             if (read_len > 0)
@@ -84,10 +86,10 @@ int main(int argc, char **argv)
                 ((compress_params.status & LZS_C_STATUS_INPUT_STARVED) != 0)
            )
         {
-            break;
+            finish = true;
         }
 
-        out_length = lzs_compress_incremental(&compress_params, false);
+        out_length = lzs_compress_incremental(&compress_params, finish);
         if (out_length)
         {
             write(out_fd, compress_params.outPtr - out_length, out_length);
