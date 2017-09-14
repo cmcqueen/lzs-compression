@@ -422,7 +422,6 @@ void lzs_decompress_init(LzsDecompressParameters_t * pParams)
     pParams->bitFieldQueueLen = 0;
     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
     pParams->historyLatestIdx = 0;
-    pParams->historySize = 0;
 }
 
 
