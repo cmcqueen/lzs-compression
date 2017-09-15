@@ -1,0 +1,14 @@
+
+#######################################
+# The list of libraries we are building separated by spaces.
+# The 'lib_' indicates that these build products will be installed
+# in the $(libdir) directory. For example /usr/lib
+lib_LTLIBRARIES = lib@PACKAGE_NAME@-@PACKAGE_VERSION@.la
+
+#######################################
+# Build information for each library
+
+library_include_lzsdir=$(includedir)/@PACKAGE_NAME@-@PACKAGE_VERSION@
+library_include_lzs_HEADERS = lzs.h
+lib@PACKAGE_NAME@_@PACKAGE_VERSION@_la_SOURCES = lzs-compression.c lzs-decompression.c
+lib@PACKAGE_NAME@_@PACKAGE_VERSION@_la_LDFLAGS = -version-info @LIB_SO_VERSION@
