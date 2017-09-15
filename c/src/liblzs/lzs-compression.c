@@ -97,13 +97,6 @@ typedef enum
     COMPRESS_EXTENDED
 } SimpleCompressState_t;
 
-typedef enum
-{
-    COMPRESS_SEARCH,
-
-    NUM_COMPRESS_STATES
-} LzsCompressState_t;
-
 
 /*****************************************************************************
  * Tables
@@ -399,14 +392,22 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
  */
 void lzs_compress_init(LzsCompressParameters_t * pParams)
 {
+    // Sanity check on historyBufferSize.
+    if (pParams->historyBufferSize > LZS_COMPRESS_HISTORY_SIZE)
+    {
+        pParams->historyBufferSize = LZS_COMPRESS_HISTORY_SIZE;
+    }
+
     pParams->status = LZS_C_STATUS_NONE;
 
     pParams->inSearchBufferLen = 0;
     pParams->bitFieldQueue = 0;
     pParams->bitFieldQueueLen = 0;
-    pParams->state = COMPRESS_SEARCH;
+    pParams->state = COMPRESS_NORMAL;
+    pParams->historyReadIdx = 0;
     pParams->historyLatestIdx = 0;
     pParams->historyLen = 0;
+    pParams->offset = 0;
 }
 
 size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)
@@ -425,6 +426,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
 
     for (;;)
     {
+        length = 0;
         // Write data from the bit field queue to output
         while (pParams->bitFieldQueueLen >= 8u)
         {
@@ -483,7 +485,6 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         }
 
         // Process input data in a state machine
-        length = 0;
         switch (pParams->state)
         {
             case COMPRESS_NORMAL:

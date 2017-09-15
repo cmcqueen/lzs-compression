@@ -57,6 +57,11 @@
 // LZS_MAX_HISTORY_SIZE is derived from LONG_OFFSET_BITS.
 #define LZS_MAX_HISTORY_SIZE        ((1u << 11u) - 1u)
 
+// Size to use for history buffer for incremental compression.
+// In future, it may be different from LZS_MAX_HISTORY_SIZE, because we may
+// also store look-ahead data in the history buffer.
+#define LZS_COMPRESS_HISTORY_SIZE   LZS_MAX_HISTORY_SIZE
+
 // Worst-case size of LZS compressed data, given input data of size X.
 // Worst case is 9/8 times original size, plus a couple of bytes for end marker.
 #define LZS_COMPRESSED_MAX(X)       ((X) + ((X) + 7u) / 8u + 3u)
@@ -92,9 +97,7 @@ typedef struct
     /*
      * These parameters should be set before calling the decompress_init(), and then not changed.
      *
-     * Note: History buffer should be blanked at start, to avoid information leak in the case of
-     * invalid compressed data that has offset value pointing outside of valid decompressed data
-     * in the current decompression operation.
+     * historyPtr should point to a buffer of size LZS_COMPRESS_HISTORY_SIZE.
      */
     uint8_t           * historyPtr;         // Points to start of history buffer. Must be set at initialisation.
     uint_fast16_t       historyBufferSize;  // The size of the history buffer. Must be set at initialisation.
