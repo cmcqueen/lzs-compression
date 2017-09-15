@@ -269,7 +269,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             bitFieldQueueLen -= 8u;
             outCount++;
         }
-        if (inRemaining == 0)
+        if (inRemaining == 0 && state == COMPRESS_NORMAL)
         {
             /* Exit for loop when all input data is processed. */
             break;
@@ -627,6 +627,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
 
     if (add_end_marker &&
         pParams->inLength == 0 &&
+        pParams->state == COMPRESS_NORMAL &&
         pParams->inSearchBufferLen == 0 &&
         pParams->bitFieldQueueLen < 8u &&
         pParams->outLength >= (pParams->bitFieldQueueLen + 2u + SHORT_OFFSET_BITS + 7u) / 8u)
