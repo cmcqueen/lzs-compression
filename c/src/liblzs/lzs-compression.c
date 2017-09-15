@@ -168,6 +168,7 @@ static inline uint_fast8_t lzs_inc_match_len(const uint8_t * aPtr, LzsCompressPa
     uint_fast16_t   historyReadIdx;
     const uint8_t * bPtr;
     uint_fast8_t    len;
+    uint_fast16_t   tempOffset;
 
 
 #if 0
@@ -181,13 +182,14 @@ static inline uint_fast8_t lzs_inc_match_len(const uint8_t * aPtr, LzsCompressPa
         historyReadIdx = pParams->historyLatestIdx - offset;
     }
 #else
+    tempOffset = offset;
     // This code is simpler, but relies on calculation overflows wrapping as expected.
-    if (offset > pParams->historyLatestIdx)
+    if (tempOffset > pParams->historyLatestIdx)
     {
         // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
-        offset -= pParams->historyBufferSize;
+        tempOffset -= pParams->historyBufferSize;
     }
-    historyReadIdx = pParams->historyLatestIdx - offset;
+    historyReadIdx = pParams->historyLatestIdx - tempOffset;
 #endif
     bPtr = pParams->historyPtr + historyReadIdx;
     for (len = 0; len < matchMax; )
@@ -496,8 +498,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
 
                 // Look for a match in history.
                 best_length = 0;
-                //matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
-                matchMax = pParams->inSearchBufferLen;
+                matchMax = (pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX) ? pParams->inSearchBufferLen : LZS_SEARCH_MATCH_MAX;
                 for (offset = 1; offset <= pParams->historyLen; offset++)
                 {
                     length = lzs_inc_match_len(pParams->inSearchBuffer,
