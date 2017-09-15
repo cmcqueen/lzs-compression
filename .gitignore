@@ -1,1 +1,37 @@
+# Ignore objects and archives, anywhere in the tree.
+*.[oa]
+*.lo
+*.la
+# Ignore build output files
+/c/build
+
+# Ignore backup files
+*~
+
+# Ignore autotools files
+.deps
+.libs
+/c/autom4te.cache
+/c/build-aux
+/c/config.h
+/c/config.h.in
+/c/config.log
+/c/config.status
+/c/configure
+/c/libtool
+/c/stamp-h1
+*.m4
+Makefile
+Makefile.in
+*.pc
+
+# Ignore Python files
 *.pyc
+*.pyd
+
+# Ignore Eclipse project files
+.cproject
+.project
+.autotools
+.settings
+.pydevproject
