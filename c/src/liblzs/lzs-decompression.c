@@ -47,6 +47,10 @@
 
 #include <stdint.h>
 
+//#include <inttypes.h>
+//#include <ctype.h>
+//#include <stdio.h>
+
 
 /*****************************************************************************
  * Defines
@@ -182,7 +186,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
         {
             bitFieldQueue |= (*inPtr++ << (BIT_QUEUE_BITS - 8u - bitFieldQueueLen));
             bitFieldQueueLen += 8u;
-            LZS_DEBUG(("Load queue: %04X\n", bitFieldQueue));
+            //LZS_DEBUG(("Load queue: %04X\n", bitFieldQueue));
             inRemaining--;
         }
         // Check if we've reached the end of our input data
@@ -224,7 +228,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                     temp8 = (uint8_t) (bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
                     bitFieldQueue <<= 8u;
                     bitFieldQueueLen -= 8u;
-                    LZS_DEBUG(("Literal %c\n", temp8));
+                    LZS_DEBUG(("Literal %c (%02X)\n", isprint(temp8) ? temp8 : '?', temp8));
 
                     // Write to output
                     // Not necessary to check for space, because that was done at the top of the main loop.
@@ -451,7 +455,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
         {
             pParams->bitFieldQueue |= (*pParams->inPtr++ << (BIT_QUEUE_BITS - 8u - pParams->bitFieldQueueLen));
             pParams->bitFieldQueueLen += 8u;
-            LZS_DEBUG(("Load queue: %04X\n", pParams->bitFieldQueue));
+            //LZS_DEBUG(("Load queue: %04X\n", pParams->bitFieldQueue));
             pParams->inLength--;
         }
         // Check if we've reached the end of our input data
@@ -508,7 +512,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     temp8 = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - 8u));
                     pParams->bitFieldQueue <<= 8u;
                     pParams->bitFieldQueueLen -= 8u;
-                    LZS_DEBUG(("Literal %c\n", temp8));
+                    LZS_DEBUG(("Literal %c (%02X)\n", isprint(temp8) ? temp8 : '?', temp8));
 
                     *pParams->outPtr++ = temp8;
                     pParams->outLength--;
@@ -564,6 +568,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                 }
                 else
                 {
+                    LZS_DEBUG(("Short offset %"PRIuFAST16"\n", offset));
                     pParams->offset = offset;
                     pParams->state = DECOMPRESS_GET_LENGTH;
                 }
@@ -572,6 +577,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
         case DECOMPRESS_GET_OFFSET_LONG:
                 // Long offset
                 pParams->offset = pParams->bitFieldQueue >> (BIT_QUEUE_BITS - LONG_OFFSET_BITS);
+                LZS_DEBUG(("Long offset %"PRIuFAST16"\n", pParams->offset));
                 pParams->bitFieldQueue <<= LONG_OFFSET_BITS;
                 pParams->bitFieldQueueLen -= LONG_OFFSET_BITS;
 
@@ -622,6 +628,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                 }
                 else
                 {
+                    LZS_DEBUG(("Length %"PRIuFAST8"\n", pParams->length));
                     pParams->bitFieldQueue <<= temp8;
                     pParams->bitFieldQueueLen -= temp8;
                     if (pParams->length == MAX_INITIAL_LENGTH)
@@ -656,7 +663,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     }
                     pParams->historyReadIdx = pParams->historyLatestIdx - offset;
 #endif
-                    LZS_DEBUG(("(%"PRIuFAST16", %"PRIuFAST8")\n", offset, pParams->length));
+                    //LZS_DEBUG(("(%"PRIuFAST16", %"PRIuFAST8")\n", offset, pParams->length));
                 }
                 break;
 
@@ -715,6 +722,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                 pParams->length = (uint8_t) (pParams->bitFieldQueue >> (BIT_QUEUE_BITS - LENGTH_MAX_BIT_WIDTH));
                 pParams->bitFieldQueue <<= LENGTH_MAX_BIT_WIDTH;
                 pParams->bitFieldQueueLen -= LENGTH_MAX_BIT_WIDTH;
+                LZS_DEBUG(("Extended length %"PRIuFAST8"\n", pParams->length));
                 if (pParams->length == MAX_EXTENDED_LENGTH)
                 {
                     // We stay in extended length decode mode

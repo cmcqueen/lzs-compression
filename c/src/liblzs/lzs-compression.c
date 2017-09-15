@@ -48,6 +48,7 @@
 #include <stdint.h>
 
 //#include <inttypes.h>
+//#include <ctype.h>
 //#include <stdio.h>
 
 #include <string.h>
@@ -302,8 +303,8 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     bitFieldQueue <<= 9u;
                     bitFieldQueue |= *inPtr;
                     bitFieldQueueLen += 9u;
-                    length = 1;
-                    LZS_DEBUG(("Literal %02X\n", *inPtr));
+                    length = 1u;
+                    LZS_DEBUG(("Literal %c (%02X)\n", isprint(*inPtr) ? *inPtr : '?', *inPtr));
                 }
                 else
                 {
@@ -317,7 +318,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     if (best_offset <= SHORT_OFFSET_MAX)
                     {
                         /* Short offset */
-                        LZS_DEBUG(("    Short offset %"PRIuFAST16"\n", best_offset));
+                        LZS_DEBUG(("Short offset %"PRIuFAST16"\n", best_offset));
                         bitFieldQueue <<= (1u + SHORT_OFFSET_BITS);
                         /* Initial 1 bit indicates short offset */
                         bitFieldQueue |= (1u << SHORT_OFFSET_BITS) | best_offset;
@@ -326,7 +327,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     else
                     {
                         /* Long offset */
-                        LZS_DEBUG(("    Long offset %"PRIuFAST16"\n", best_offset));
+                        LZS_DEBUG(("Long offset %"PRIuFAST16"\n", best_offset));
                         bitFieldQueue <<= (1u + LONG_OFFSET_BITS);
                         /* Initial 0 bit indicates long offset */
                         bitFieldQueue |= best_offset;
@@ -334,7 +335,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     }
                     /* Encode length */
                     length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
-                    LZS_DEBUG(("    Length %"PRIuFAST8"\n", length));
+                    LZS_DEBUG(("Length %"PRIuFAST8"\n", length));
                     temp8 = length_width[length];
                     bitFieldQueue <<= temp8;
                     bitFieldQueue |= length_value[length];
@@ -349,7 +350,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             case COMPRESS_EXTENDED:
                 matchMax = (inRemaining < MAX_EXTENDED_LENGTH) ? inRemaining : MAX_EXTENDED_LENGTH;
                 length = lzs_match_len(inPtr, inPtr - best_offset, matchMax);
-                LZS_DEBUG(("    Extended length %"PRIuFAST8"\n", length));
+                LZS_DEBUG(("Extended length %"PRIuFAST8"\n", length));
 
                 /* Encode length */
                 bitFieldQueue <<= EXTENDED_LENGTH_BITS;
@@ -524,7 +525,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     pParams->bitFieldQueue |= *pParams->inSearchBuffer;
                     pParams->bitFieldQueueLen += 9u;
                     length = 1u;
-                    LZS_DEBUG(("Literal %02X\n", *pParams->inSearchBuffer));
+                    LZS_DEBUG(("Literal %c (%02X)\n", isprint(*pParams->inSearchBuffer) ? *pParams->inSearchBuffer : '?', *pParams->inSearchBuffer));
                 }
                 else
                 {
@@ -538,7 +539,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     if (best_offset <= SHORT_OFFSET_MAX)
                     {
                         /* Short offset */
-                        LZS_DEBUG(("    Short offset %"PRIuFAST16"\n", best_offset));
+                        LZS_DEBUG(("Short offset %"PRIuFAST16"\n", best_offset));
                         pParams->bitFieldQueue <<= (1u + SHORT_OFFSET_BITS);
                         /* Initial 1 bit indicates short offset */
                         pParams->bitFieldQueue |= (1u << SHORT_OFFSET_BITS) | best_offset;
@@ -547,7 +548,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     else
                     {
                         /* Long offset */
-                        LZS_DEBUG(("    Long offset %"PRIuFAST16"\n", best_offset));
+                        LZS_DEBUG(("Long offset %"PRIuFAST16"\n", best_offset));
                         pParams->bitFieldQueue <<= (1u + LONG_OFFSET_BITS);
                         /* Initial 0 bit indicates long offset */
                         pParams->bitFieldQueue |= best_offset;
@@ -555,7 +556,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     }
                     /* Encode length */
                     length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
-                    LZS_DEBUG(("    Length %"PRIuFAST8"\n", length));
+                    LZS_DEBUG(("Length %"PRIuFAST8"\n", length));
                     temp8 = length_width[length];
                     pParams->bitFieldQueue <<= temp8;
                     pParams->bitFieldQueue |= length_value[length];
@@ -584,7 +585,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 length = lzs_inc_match_len(pParams->inSearchBuffer,
                                             pParams,
                                             pParams->offset, matchMax);
-                LZS_DEBUG(("    Extended length %"PRIuFAST8"\n", length));
+                LZS_DEBUG(("Extended length %"PRIuFAST8"\n", length));
 
                 /* Encode length */
                 pParams->bitFieldQueue <<= EXTENDED_LENGTH_BITS;
