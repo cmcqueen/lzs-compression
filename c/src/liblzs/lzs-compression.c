@@ -63,6 +63,8 @@
 #define EXTENDED_LENGTH_BITS        4u
 #define BIT_QUEUE_BITS              32u
 
+#define NORMAL_SEARCH_LEN           ((LZS_SEARCH_MATCH_MAX < MAX_SHORT_LENGTH) ? LZS_SEARCH_MATCH_MAX : MAX_SHORT_LENGTH)
+
 #define SHORT_OFFSET_MAX            ((1u << SHORT_OFFSET_BITS) - 1u)
 #define LONG_OFFSET_MAX             ((1u << LONG_OFFSET_BITS) - 1u)
 
@@ -460,7 +462,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         if (pParams->inLength == 0)
         {
             pParams->status |= LZS_C_STATUS_INPUT_FINISHED | LZS_C_STATUS_INPUT_STARVED;
-            if (pParams->inSearchBufferLen == 0)
+            if (add_end_marker == false)
             {
                 break;
             }
@@ -488,14 +490,19 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         switch (pParams->state)
         {
             case COMPRESS_NORMAL:
-                if (add_end_marker == false)
+                if (add_end_marker)
                 {
-                    if (pParams->inSearchBufferLen < MAX_SHORT_LENGTH || pParams->inSearchBufferLen < LZS_SEARCH_MATCH_MAX)
-                    {
-                        // We don't have enough input data, so we're done for now.
-                        pParams->status |= LZS_C_STATUS_INPUT_STARVED;
-                        break;
-                    }
+                    matchMax = 1;
+                }
+                else
+                {
+                    matchMax = NORMAL_SEARCH_LEN;
+                }
+                if (pParams->inSearchBufferLen < matchMax)
+                {
+                    // We don't have enough input data, so we're done for now.
+                    pParams->status |= LZS_C_STATUS_INPUT_STARVED;
+                    break;
                 }
 
                 // Look for a match in history.
