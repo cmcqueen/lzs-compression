@@ -460,7 +460,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         if (pParams->inLength == 0)
         {
             pParams->status |= LZS_C_STATUS_INPUT_FINISHED | LZS_C_STATUS_INPUT_STARVED;
-            if (add_end_marker == false)
+            if (pParams->inSearchBufferLen == 0)
             {
                 break;
             }
