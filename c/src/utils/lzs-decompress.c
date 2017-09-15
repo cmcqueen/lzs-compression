@@ -94,10 +94,12 @@ int main(int argc, char **argv)
             decompress_params.outPtr = out_buffer;
             decompress_params.outLength = sizeof(out_buffer);
         }
+#if 0
         if ((decompress_params.status & ~(LZS_D_STATUS_INPUT_STARVED | LZS_D_STATUS_INPUT_FINISHED)) != 0)
         {
             printf("Exit with status %02X\n", decompress_params.status);
         }
+#endif
     }
 
     return 0;

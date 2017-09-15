@@ -96,10 +96,12 @@ int main(int argc, char **argv)
             compress_params.outPtr = out_buffer;
             compress_params.outLength = sizeof(out_buffer);
         }
+#if 0
         if ((compress_params.status & ~(LZS_C_STATUS_INPUT_STARVED | LZS_C_STATUS_INPUT_FINISHED)) != 0)
         {
             printf("Exit with status %02X\n", compress_params.status);
         }
+#endif
     }
 
     return 0;
