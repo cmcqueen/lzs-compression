@@ -25,7 +25,7 @@ AC_CONFIG_FILES([
 		src/liblzs/Makefile
 		src/test/Makefile
 		src/utils/Makefile
-		src/lzs.pc])
+		src/liblzs/liblzs.pc])
 
 #dnl this allows us specify individual linking flags for each target
 AM_PROG_CC_C_O 
