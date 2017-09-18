@@ -105,7 +105,7 @@ typedef struct
     size_t              inLength;           // On entry, set this to the length of the input data. On exit, it is the length of unprocessed data
     size_t              outLength;          // On entry, set this to the space in the output buffer. On exit, decremented by the number of output bytes generated
 
-    uint_fast8_t        status;
+    uint8_t             status;
 
     /*
      * These are private members, and should not be changed.
@@ -113,12 +113,12 @@ typedef struct
     uint8_t             historyBuffer[LZS_COMPRESS_HISTORY_SIZE];
     uint8_t             lookAheadLen;
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
-    uint_fast8_t        bitFieldQueueLen;   // Number of bits in the queue
-    uint_fast16_t       historyLatestIdx;
-    uint_fast16_t       historyLookAheadIdx;
-    uint_fast16_t       historyLen;
-    uint_fast16_t       offset;
-    uint_fast8_t        state;              // LzsCompressState_t
+    uint8_t             bitFieldQueueLen;   // Number of bits in the queue
+    uint16_t            historyLatestIdx;
+    uint16_t            historyLookAheadIdx;
+    uint16_t            historyLen;
+    uint16_t            offset;
+    uint8_t             state;              // LzsCompressState_t
 } LzsCompressParameters_t;
 
 
@@ -144,20 +144,20 @@ typedef struct
     size_t              inLength;           // On entry, set this to the length of the input data. On exit, it is the length of unprocessed data
     size_t              outLength;          // On entry, set this to the space in the output buffer. On exit, decremented by the number of output bytes generated
 
-    uint_fast8_t        status;
+    uint8_t             status;
 
     /*
      * These are private members, and should not be changed.
      */
     uint8_t             historyBuffer[LZS_DECOMPRESS_HISTORY_SIZE];
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
-    uint_fast8_t        bitFieldQueueLen;   // Number of bits in the queue
-    uint_fast16_t       historyReadIdx;
-    uint_fast16_t       historyLatestIdx;
-    uint_fast16_t       historyLen;
-    uint_fast16_t       offset;
-    uint_fast8_t        length;
-    uint_fast8_t        state;              // LzsDecompressState_t
+    uint8_t             bitFieldQueueLen;   // Number of bits in the queue
+    uint16_t            historyReadIdx;
+    uint16_t            historyLatestIdx;
+    uint16_t            historyLen;
+    uint16_t            offset;
+    uint8_t             length;
+    uint8_t             state;              // LzsDecompressState_t
 } LzsDecompressParameters_t;
 
 
