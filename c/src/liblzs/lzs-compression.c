@@ -168,10 +168,10 @@ static inline uint_fast8_t lzs_inc_match_len(const uint8_t * aPtr, LzsCompressPa
 
 
 #if 0
-    // This code is a "safe" version (no overflows as long as pParams->historyBufferSize < MAX_UINT16/2)
+    // This code is a "safe" version (no overflows as long as sizeof(pParams->historyBuffer) < MAX_UINT16/2)
     if (offset > pParams->historyLatestIdx)
     {
-        historyReadIdx = pParams->historyLatestIdx + pParams->historyBufferSize - offset;
+        historyReadIdx = pParams->historyLatestIdx + sizeof(pParams->historyBuffer) - offset;
     }
     else
     {
@@ -183,11 +183,11 @@ static inline uint_fast8_t lzs_inc_match_len(const uint8_t * aPtr, LzsCompressPa
     if (tempOffset > pParams->historyLatestIdx)
     {
         // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
-        tempOffset -= pParams->historyBufferSize;
+        tempOffset -= sizeof(pParams->historyBuffer);
     }
     historyReadIdx = pParams->historyLatestIdx - tempOffset;
 #endif
-    bPtr = pParams->historyPtr + historyReadIdx;
+    bPtr = pParams->historyBuffer + historyReadIdx;
     for (len = 0; len < matchMax; )
     {
         if (*aPtr++ != *bPtr++)
@@ -198,10 +198,10 @@ static inline uint_fast8_t lzs_inc_match_len(const uint8_t * aPtr, LzsCompressPa
         if (len < offset)
         {
             ++historyReadIdx;
-            if (historyReadIdx >= pParams->historyBufferSize)
+            if (historyReadIdx >= sizeof(pParams->historyBuffer))
             {
                 historyReadIdx = 0;
-                bPtr = pParams->historyPtr;
+                bPtr = pParams->historyBuffer;
             }
         }
         else if (len == offset)
@@ -394,12 +394,6 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
  */
 void lzs_compress_init(LzsCompressParameters_t * pParams)
 {
-    // Sanity check on historyBufferSize.
-    if (pParams->historyBufferSize > LZS_COMPRESS_HISTORY_SIZE)
-    {
-        pParams->historyBufferSize = LZS_COMPRESS_HISTORY_SIZE;
-    }
-
     pParams->status = LZS_C_STATUS_NONE;
 
     pParams->inSearchBufferLen = 0;
@@ -610,10 +604,10 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         // Copy 'length' input bytes into history buffer.
         for (temp8 = 0; temp8 < length; temp8++)
         {
-            pParams->historyPtr[pParams->historyLatestIdx] = pParams->inSearchBuffer[temp8];
+            pParams->historyBuffer[pParams->historyLatestIdx] = pParams->inSearchBuffer[temp8];
 
             pParams->historyLatestIdx++;
-            if (pParams->historyLatestIdx >= pParams->historyBufferSize)
+            if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
             {
                 pParams->historyLatestIdx = 0;
             }

@@ -35,7 +35,6 @@ int main(int argc, char **argv)
     int read_len;
     uint8_t in_buffer[16];
     uint8_t out_buffer[16];
-    uint8_t history_buffer[LZS_COMPRESS_HISTORY_SIZE];
     LzsCompressParameters_t compress_params;
     size_t  out_length;
     bool    finish = false;
@@ -59,9 +58,6 @@ int main(int argc, char **argv)
     }
 
     // Initialise
-    memset(history_buffer, 0, sizeof(history_buffer));
-    compress_params.historyPtr = history_buffer;
-    compress_params.historyBufferSize = sizeof(history_buffer);
     lzs_compress_init(&compress_params);
 
     // Compress bounded by input buffer size

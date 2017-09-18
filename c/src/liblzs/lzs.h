@@ -95,14 +95,6 @@ typedef enum
 typedef struct
 {
     /*
-     * These parameters should be set before calling the decompress_init(), and then not changed.
-     *
-     * historyPtr should point to a buffer of size LZS_COMPRESS_HISTORY_SIZE.
-     */
-    uint8_t           * historyPtr;         // Points to start of history buffer. Must be set at initialisation.
-    uint_fast16_t       historyBufferSize;  // The size of the history buffer. Must be set at initialisation.
-
-    /*
      * These parameters should be set (as needed) each time prior to calling decompress_incremental().
      * Then, they are updated appropriately by decompress_incremental(), according to
      * what happens during the decompression process.
@@ -117,6 +109,7 @@ typedef struct
     /*
      * These are private members, and should not be changed.
      */
+    uint8_t             historyBuffer[LZS_COMPRESS_HISTORY_SIZE];
     uint8_t             inSearchBuffer[LZS_SEARCH_BUF_LEN];
     uint8_t             inSearchBufferLen;
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
