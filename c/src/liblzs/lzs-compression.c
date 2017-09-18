@@ -387,7 +387,6 @@ void lzs_compress_init(LzsCompressParameters_t * pParams)
     pParams->bitFieldQueue = 0;
     pParams->bitFieldQueueLen = 0;
     pParams->state = COMPRESS_NORMAL;
-    pParams->historyReadIdx = 0;
     pParams->historyLatestIdx = 0;
     pParams->historyLookAheadIdx = 0;
     pParams->historyLen = 0;
