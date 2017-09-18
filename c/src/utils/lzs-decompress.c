@@ -35,7 +35,6 @@ int main(int argc, char **argv)
     int read_len;
     uint8_t in_buffer[16];
     uint8_t out_buffer[16];
-    uint8_t history_buffer[LZS_MAX_HISTORY_SIZE];
     LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
@@ -58,9 +57,6 @@ int main(int argc, char **argv)
     }
 
     // Initialise
-    memset(history_buffer, 0, sizeof(history_buffer));
-    decompress_params.historyPtr = history_buffer;
-    decompress_params.historyBufferSize = sizeof(history_buffer);
     lzs_decompress_init(&decompress_params);
 
     // Decompress bounded by input buffer size

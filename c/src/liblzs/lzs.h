@@ -62,6 +62,8 @@
 // also store look-ahead data in the history buffer.
 #define LZS_COMPRESS_HISTORY_SIZE   LZS_MAX_HISTORY_SIZE
 
+#define LZS_DECOMPRESS_HISTORY_SIZE LZS_MAX_HISTORY_SIZE
+
 // Worst-case size of LZS compressed data, given input data of size X.
 // Worst case is 9/8 times original size, plus a couple of bytes for end marker.
 #define LZS_COMPRESSED_MAX(X)       ((X) + ((X) + 7u) / 8u + 3u)
@@ -135,33 +137,28 @@ typedef enum
 typedef struct
 {
     /*
-     * These parameters should be set before calling the decompress_init(), and then not changed.
-     */
-    uint8_t               * historyPtr;         // Points to start of history buffer. Must be set at initialisation.
-    uint_fast16_t           historyBufferSize;  // The size of the history buffer. Must be set at initialisation.
-
-    /*
      * These parameters should be set (as needed) each time prior to calling decompress_incremental().
      * Then, they are updated appropriately by decompress_incremental(), according to
      * what happens during the decompression process.
      */
-    const uint8_t         * inPtr;              // On entry, points to input data. On exit, points to first unprocessed input data
-    uint8_t               * outPtr;             // On entry, point to output data buffer. On exit, points to one past the last output data byte
-    size_t                  inLength;           // On entry, set this to the length of the input data. On exit, it is the length of unprocessed data
-    size_t                  outLength;          // On entry, set this to the space in the output buffer. On exit, decremented by the number of output bytes generated
+    const uint8_t     * inPtr;              // On entry, points to input data. On exit, points to first unprocessed input data
+    uint8_t           * outPtr;             // On entry, point to output data buffer. On exit, points to one past the last output data byte
+    size_t              inLength;           // On entry, set this to the length of the input data. On exit, it is the length of unprocessed data
+    size_t              outLength;          // On entry, set this to the space in the output buffer. On exit, decremented by the number of output bytes generated
 
-    uint_fast8_t            status;
+    uint_fast8_t        status;
 
     /*
      * These are private members, and should not be changed.
      */
-    uint32_t                bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
-    uint_fast8_t            bitFieldQueueLen;   // Number of bits in the queue
-    uint_fast16_t           historyReadIdx;
-    uint_fast16_t           historyLatestIdx;
-    uint_fast16_t           offset;
-    uint_fast8_t            length;
-    uint_fast8_t            state;              // LzsDecompressState_t
+    uint8_t             historyBuffer[LZS_DECOMPRESS_HISTORY_SIZE];
+    uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
+    uint_fast8_t        bitFieldQueueLen;   // Number of bits in the queue
+    uint_fast16_t       historyReadIdx;
+    uint_fast16_t       historyLatestIdx;
+    uint_fast16_t       offset;
+    uint_fast8_t        length;
+    uint_fast8_t        state;              // LzsDecompressState_t
 } LzsDecompressParameters_t;
 
 
