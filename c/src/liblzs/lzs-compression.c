@@ -226,7 +226,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     const uint8_t     * inPtr;
     uint8_t           * outPtr;
     uint16_t            hashTable[INPUT_HASH_SIZE];
-    input_hash_t        historyHash[LZS_MAX_HISTORY_SIZE];
+    uint16_t            historyHash[LZS_MAX_HISTORY_SIZE];
     size_t              historyLen;
     size_t              inRemaining;        // Count of remaining bytes of input
     size_t              outCount;           // Count of output bytes that have been generated
@@ -254,6 +254,17 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     inRemaining = a_inLen;
     outCount = 0;
     state = COMPRESS_NORMAL;
+
+#if 0
+    for (temp16 = 0; temp16 < ARRAY_ENTRIES(hashTable); temp16++)
+    {
+        hashTable[temp16] = (uint16_t)-1;
+    }
+    for (temp16 = 0; temp16 < ARRAY_ENTRIES(historyHash); temp16++)
+    {
+        historyHash[temp16] = (uint16_t)-1;
+    }
+#endif
 
     for (;;)
     {
@@ -284,40 +295,42 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 {
                     inputHash = inputs_hash(*inPtr, *(inPtr + 1));
                     historyReadIdx = hashTable[inputHash];
-
-                    offset = historyLatestIdx;
-                    if (offset < historyReadIdx)
+                    if (historyReadIdx <= ARRAY_ENTRIES(historyHash))
                     {
-                        offset += ARRAY_ENTRIES(historyHash);
-                    }
-                    offset -= historyReadIdx;
-
-                    for ( ; offset > 0 && offset <= historyLen; )
-                    {
-                        length = lzs_match_len(inPtr, inPtr - offset, matchMax);
-                        if (length > best_length && length >= MIN_LENGTH)
+                        offset = historyLatestIdx;
+                        if (offset <= historyReadIdx)
                         {
-                            best_offset = offset;
-                            best_length = length;
-                            if (length >= LZS_SEARCH_MATCH_MAX)
+                            offset += ARRAY_ENTRIES(historyHash);
+                        }
+                        offset -= historyReadIdx;
+
+                        for ( ; offset <= historyLen; )
+                        {
+                            length = lzs_match_len(inPtr, inPtr - offset, matchMax);
+                            if (length > best_length && length >= MIN_LENGTH)
+                            {
+                                best_offset = offset;
+                                best_length = length;
+                                if (length >= LZS_SEARCH_MATCH_MAX)
+                                {
+                                    break;
+                                }
+                            }
+
+                            historyReadIdx = historyLatestIdx;
+                            if (historyReadIdx < offset)
+                            {
+                                historyReadIdx += ARRAY_ENTRIES(historyHash);
+                            }
+                            historyReadIdx -= offset;
+
+                            temp16 = historyHash[historyReadIdx];
+                            if (temp16 == 0 || temp16 > LZS_MAX_HISTORY_SIZE)
                             {
                                 break;
                             }
+                            offset += temp16;
                         }
-
-                        historyReadIdx = historyLatestIdx;
-                        if (historyReadIdx < offset)
-                        {
-                            historyReadIdx += ARRAY_ENTRIES(historyHash);
-                        }
-                        historyReadIdx -= offset;
-
-                        temp16 = historyHash[historyReadIdx];
-                        if (temp16 == 0)
-                        {
-                            break;
-                        }
-                        offset += temp16;
                     }
                 }
                 /* Output */
@@ -397,7 +410,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             inPtr++;
 
             temp16 = historyLatestIdx;
-            if (temp16 < hashTable[inputHash])
+            if (temp16 <= hashTable[inputHash])
             {
                 temp16 += ARRAY_ENTRIES(historyHash);
             }
