@@ -86,6 +86,10 @@
 #error LZS_MAX_LOOK_AHEAD_LEN is too small
 #endif
 
+#define INPUT_HASH_SIZE             (1u << 12u)
+
+#define ARRAY_ENTRIES(a)            (sizeof(a)/sizeof((a)[0]))
+
 
 /*****************************************************************************
  * Typedefs
@@ -96,6 +100,8 @@ typedef enum
     COMPRESS_NORMAL,
     COMPRESS_EXTENDED
 } SimpleCompressState_t;
+
+typedef uint16_t    input_hash_t;
 
 
 /*****************************************************************************
@@ -141,6 +147,12 @@ static const uint8_t length_width[MAX_SHORT_LENGTH + 1u] =
 /*****************************************************************************
  * Inline Functions
  ****************************************************************************/
+
+// Return hash of two input bytes, modulo INPUT_HASH_SIZE.
+static inline input_hash_t inputs_hash(uint8_t a, uint8_t b)
+{
+    return (((input_hash_t)a << 4u) ^ (input_hash_t)b) % INPUT_HASH_SIZE;
+}
 
 static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, uint_fast8_t matchMax)
 {
@@ -213,16 +225,22 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
 {
     const uint8_t     * inPtr;
     uint8_t           * outPtr;
+    uint16_t            hashTable[INPUT_HASH_SIZE];
+    input_hash_t        historyHash[LZS_MAX_HISTORY_SIZE];
     size_t              historyLen;
     size_t              inRemaining;        // Count of remaining bytes of input
     size_t              outCount;           // Count of output bytes that have been generated
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left.
+    input_hash_t        inputHash;
     uint_fast8_t        bitFieldQueueLen;
+    uint_fast16_t       historyReadIdx;
+    uint_fast16_t       historyLatestIdx;
     uint_fast16_t       offset;
     uint_fast8_t        matchMax;
     uint_fast8_t        length;
     uint_fast16_t       best_offset;
     uint_fast8_t        best_length;
+    uint16_t            temp16;
     uint8_t             temp8;
     SimpleCompressState_t state;
 
@@ -230,6 +248,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     historyLen = 0;
     bitFieldQueue = 0;
     bitFieldQueueLen = 0;
+    historyLatestIdx = 0;
     inPtr = a_pInData;
     outPtr = a_pOutData;
     inRemaining = a_inLen;
@@ -261,17 +280,44 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 /* Look for a match in history */
                 best_length = 0;
                 matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
-                for (offset = 1; offset <= historyLen; offset++)
+                if (matchMax >= 2u)
                 {
-                    length = lzs_match_len(inPtr, inPtr - offset, matchMax);
-                    if (length > best_length && length >= MIN_LENGTH)
+                    inputHash = inputs_hash(*inPtr, *(inPtr + 1));
+                    historyReadIdx = hashTable[inputHash];
+
+                    offset = historyLatestIdx;
+                    if (offset < historyReadIdx)
                     {
-                        best_offset = offset;
-                        best_length = length;
-                        if (length >= LZS_SEARCH_MATCH_MAX)
+                        offset += ARRAY_ENTRIES(historyHash);
+                    }
+                    offset -= historyReadIdx;
+
+                    for ( ; offset > 0 && offset <= historyLen; )
+                    {
+                        length = lzs_match_len(inPtr, inPtr - offset, matchMax);
+                        if (length > best_length && length >= MIN_LENGTH)
+                        {
+                            best_offset = offset;
+                            best_length = length;
+                            if (length >= LZS_SEARCH_MATCH_MAX)
+                            {
+                                break;
+                            }
+                        }
+
+                        historyReadIdx = historyLatestIdx;
+                        if (historyReadIdx < offset)
+                        {
+                            historyReadIdx += ARRAY_ENTRIES(historyHash);
+                        }
+                        historyReadIdx -= offset;
+
+                        temp16 = historyHash[historyReadIdx];
+                        if (temp16 == 0)
                         {
                             break;
                         }
+                        offset += temp16;
                     }
                 }
                 /* Output */
@@ -345,7 +391,27 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         }
         // 'length' contains number of input bytes encoded.
         // Update inPtr and inRemaining accordingly.
-        inPtr += length;
+        for (temp8 = 0; temp8 < length; temp8++)
+        {
+            inputHash = inputs_hash(*inPtr, *(inPtr + 1));
+            inPtr++;
+
+            temp16 = historyLatestIdx;
+            if (temp16 < hashTable[inputHash])
+            {
+                temp16 += ARRAY_ENTRIES(historyHash);
+            }
+            temp16 -= hashTable[inputHash];
+
+            hashTable[inputHash] = historyLatestIdx;
+            historyHash[historyLatestIdx] = temp16;
+            historyLatestIdx++;
+            if (historyLatestIdx >= ARRAY_ENTRIES(historyHash))
+            {
+                historyLatestIdx = 0;
+            }
+        }
+
         inRemaining -= length;
 
         historyLen += length;
