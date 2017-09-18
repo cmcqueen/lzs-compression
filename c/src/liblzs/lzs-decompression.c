@@ -651,25 +651,14 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     // Do some offset calculations before beginning to copy
                     offset = pParams->offset;
                     LZS_ASSERT(offset <= sizeof(pParams->historyBuffer));
-#if 0
-                    // This code is a "safe" version (no overflows as long as sizeof(pParams->historyBuffer) < MAX_UINT16/2)
-                    if (offset > pParams->historyLatestIdx)
-                    {
-                        pParams->historyReadIdx = pParams->historyLatestIdx + sizeof(pParams->historyBuffer) - offset;
-                    }
-                    else
-                    {
-                        pParams->historyReadIdx = pParams->historyLatestIdx - offset;
-                    }
-#else
-                    // This code is simpler, but relies on calculation overflows wrapping as expected.
+                    // This relies on calculation overflows wrapping as expected --
+                    // true as long as ints are unsigned.
                     if (offset > pParams->historyLatestIdx)
                     {
                         // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
                         offset -= sizeof(pParams->historyBuffer);
                     }
                     pParams->historyReadIdx = pParams->historyLatestIdx - offset;
-#endif
                     //LZS_DEBUG(("(%"PRIuFAST16", %"PRIuFAST8")\n", offset, pParams->length));
                 }
                 break;

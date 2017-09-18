@@ -166,26 +166,17 @@ static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, 
     uint_fast8_t    len;
 
 
-#if 0
-    // This code is a "safe" version (no overflows as long as sizeof(pParams->historyBuffer) < MAX_UINT16/2)
-    if (offset > pParams->historyLatestIdx)
-    {
-        historyReadIdx = pParams->historyLatestIdx + sizeof(pParams->historyBuffer) - offset;
-    }
-    else
-    {
-        historyReadIdx = pParams->historyLatestIdx - offset;
-    }
-#else
-    // This code is simpler, but relies on calculation overflows wrapping as expected.
+    // This relies on calculation overflows wrapping as expected --
+    // true as long as ints are unsigned.
     if (offset > pParams->historyLatestIdx)
     {
         // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
         offset -= sizeof(pParams->historyBuffer);
     }
     historyReadIdx = pParams->historyLatestIdx - offset;
-#endif
+
     historyLookAheadIdx = pParams->historyLatestIdx;
+
     for (len = 0; len < matchMax; )
     {
         if (pParams->historyBuffer[historyLookAheadIdx] != pParams->historyBuffer[historyReadIdx])
