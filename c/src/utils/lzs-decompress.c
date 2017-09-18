@@ -32,7 +32,8 @@ int main(int argc, char **argv)
 {
     int in_fd;
     int out_fd;
-    int read_len;
+    ssize_t read_len;
+    ssize_t write_len;
     uint8_t in_buffer[16];
     uint8_t out_buffer[16];
     LzsDecompressParameters_t   decompress_params;
@@ -69,11 +70,13 @@ int main(int argc, char **argv)
         if (decompress_params.inLength == 0)
         {
             read_len = read(in_fd, in_buffer, sizeof(in_buffer));
-            if (read_len > 0)
+            if (read_len < 0)
             {
-                decompress_params.inPtr = in_buffer;
-                decompress_params.inLength = read_len;
+                perror("read");
+                exit(4);
             }
+            decompress_params.inPtr = in_buffer;
+            decompress_params.inLength = read_len;
         }
         if (
                 (decompress_params.inLength == 0) &&
@@ -86,7 +89,12 @@ int main(int argc, char **argv)
         out_length = lzs_decompress_incremental(&decompress_params);
         if (out_length)
         {
-            write(out_fd, decompress_params.outPtr - out_length, out_length);
+            write_len = write(out_fd, decompress_params.outPtr - out_length, out_length);
+            if (write_len < 0)
+            {
+                perror("write");
+                exit(5);
+            }
             decompress_params.outPtr = out_buffer;
             decompress_params.outLength = sizeof(out_buffer);
         }
@@ -110,6 +118,7 @@ int main(int argc, char **argv)
     int out_fd;
     struct stat stbuf;
     ssize_t read_len;
+    ssize_t write_len;
     uint8_t * inBufferPtr = NULL;
     uint8_t * outBufferPtr = NULL;
     ssize_t inBufferSize;
@@ -165,7 +174,12 @@ int main(int argc, char **argv)
 
     out_length = lzs_decompress(outBufferPtr, outBufferSize, inBufferPtr, inBufferSize);
 
-    write(out_fd, outBufferPtr, out_length);
+    write_len = write(out_fd, outBufferPtr, out_length);
+    if (write_len < 0)
+    {
+        perror("write");
+        exit(8);
+    }
 
     return 0;
 }
