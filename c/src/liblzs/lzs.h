@@ -51,18 +51,24 @@
 
 
 /*****************************************************************************
- * API Defines
+ * Implementation Defines
  ****************************************************************************/
+
+#define LZS_MAX_LOOK_AHEAD_LEN      15u
 
 // LZS_MAX_HISTORY_SIZE is derived from LONG_OFFSET_BITS.
 #define LZS_MAX_HISTORY_SIZE        ((1u << 11u) - 1u)
 
 // Size to use for history buffer for incremental compression.
-// In future, it may be different from LZS_MAX_HISTORY_SIZE, because we may
-// also store look-ahead data in the history buffer.
-#define LZS_COMPRESS_HISTORY_SIZE   LZS_MAX_HISTORY_SIZE
+// Implementation detail: the history buffer also stores look-ahead data.
+#define LZS_COMPRESS_HISTORY_SIZE   (LZS_MAX_HISTORY_SIZE + LZS_MAX_LOOK_AHEAD_LEN)
 
 #define LZS_DECOMPRESS_HISTORY_SIZE LZS_MAX_HISTORY_SIZE
+
+
+/*****************************************************************************
+ * API Defines
+ ****************************************************************************/
 
 // Worst-case size of LZS compressed data, given input data of size X.
 // Worst case is 9/8 times original size, plus a couple of bytes for end marker.
@@ -71,13 +77,6 @@
 // Worst-case size of LZS decompressed data, given compressed input data of
 // size X. Worst case is 16 times original size.
 #define LZS_DECOMPRESSED_MAX(X)     ((X) * 16u)
-
-
-/*****************************************************************************
- * Implementation Defines
- ****************************************************************************/
-
-#define LZS_SEARCH_BUF_LEN     15u
 
 
 /*****************************************************************************
@@ -112,12 +111,12 @@ typedef struct
      * These are private members, and should not be changed.
      */
     uint8_t             historyBuffer[LZS_COMPRESS_HISTORY_SIZE];
-    uint8_t             inSearchBuffer[LZS_SEARCH_BUF_LEN];
-    uint8_t             inSearchBufferLen;
+    uint8_t             lookAheadLen;
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
     uint_fast8_t        bitFieldQueueLen;   // Number of bits in the queue
     uint_fast16_t       historyReadIdx;
     uint_fast16_t       historyLatestIdx;
+    uint_fast16_t       historyLookAheadIdx;
     uint_fast16_t       historyLen;
     uint_fast16_t       offset;
     uint_fast8_t        state;              // LzsCompressState_t
