@@ -426,6 +426,7 @@ void lzs_decompress_init(LzsDecompressParameters_t * pParams)
     pParams->bitFieldQueueLen = 0;
     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
     pParams->historyLatestIdx = 0;
+    pParams->historyLen = 0;
 }
 
 
@@ -526,6 +527,12 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
                     {
                         pParams->historyLatestIdx = 0;
+                    }
+
+                    // Increment history size
+                    if (pParams->historyLen < LZS_MAX_HISTORY_SIZE)
+                    {
+                        pParams->historyLen++;
                     }
 
                     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
@@ -671,6 +678,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
             case DECOMPRESS_COPY_EXTENDED_DATA:
                 // Copy (offset, length) bytes.
                 // Offset has already been used to calculate pParams->historyReadIdx.
+                offset = pParams->offset;
                 for (;;)
                 {
                     if (pParams->length == 0)
@@ -688,8 +696,17 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                         break;
                     }
 
-                    // Get byte from history
-                    temp8 = (pParams->historyPtr)[pParams->historyReadIdx];
+                    // Get byte from history.
+                    // Check offset is within range of valid history.
+                    // If it's not, then write zeros. Avoid information leak.
+                    if (offset <= pParams->historyLen)
+                    {
+                        temp8 = pParams->historyBuffer[pParams->historyReadIdx];
+                    }
+                    else
+                    {
+                        temp8 = 0;
+                    }
 
                     // Increment read index, and wrap if necessary
                     pParams->historyReadIdx++;
@@ -712,6 +729,12 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
                     {
                         pParams->historyLatestIdx = 0;
+                    }
+
+                    // Increment history size
+                    if (pParams->historyLen < LZS_MAX_HISTORY_SIZE)
+                    {
+                        pParams->historyLen++;
                     }
                 }
                 break;
