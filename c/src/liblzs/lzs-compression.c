@@ -510,10 +510,11 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     /* Leading 0 bit indicates offset/length token.
                      * Following 8 bits are byte-literal. */
                     pParams->bitFieldQueue <<= 9u;
-                    pParams->bitFieldQueue |= pParams->historyBuffer[pParams->historyLatestIdx];
+                    temp8 = pParams->historyBuffer[pParams->historyLatestIdx];
+                    pParams->bitFieldQueue |= temp8;
                     pParams->bitFieldQueueLen += 9u;
                     length = 1u;
-                    LZS_DEBUG(("Literal %c (%02X)\n", isprint(*pParams->inSearchBuffer) ? *pParams->inSearchBuffer : '?', *pParams->inSearchBuffer));
+                    LZS_DEBUG(("Literal %c (%02X)\n", isprint(temp8) ? temp8 : '?', temp8));
                 }
                 else
                 {
