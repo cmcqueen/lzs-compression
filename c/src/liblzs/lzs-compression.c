@@ -288,18 +288,18 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
 
                             // Get next offset from historyHash[]
                             // This involves calculating historyReadIdx to index into it.
-                            historyReadIdx = lzs_idx_dec_wrap(historyLatestIdx, offset, ARRAY_ENTRIES(historyHash));
+                            historyReadIdx = historyHash[historyReadIdx];
                             if (historyReadIdx > historyLen)
                             {
                                 break;
                             }
-
-                            temp16 = historyHash[historyReadIdx];
-                            if (temp16 == 0 || temp16 > LZS_MAX_HISTORY_SIZE)
+                            // Calculate new offset.
+                            temp16 = lzs_idx_delta2_wrap(historyLatestIdx, historyReadIdx, ARRAY_ENTRIES(historyHash));
+                            if (temp16 <= offset)
                             {
                                 break;
                             }
-                            offset += temp16;
+                            offset = temp16;
                         }
                     }
                 }
@@ -379,15 +379,10 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             inputHash = inputs_hash(*inPtr, *(inPtr + 1));
             inPtr++;
 
-            temp16 = historyLatestIdx;
-            if (temp16 <= hashTable[inputHash])
-            {
-                temp16 += ARRAY_ENTRIES(historyHash);
-            }
-            temp16 -= hashTable[inputHash];
-
+            temp16 = hashTable[inputHash];
             hashTable[inputHash] = historyLatestIdx;
             historyHash[historyLatestIdx] = temp16;
+
             historyLatestIdx++;
             if (historyLatestIdx >= ARRAY_ENTRIES(historyHash))
             {
