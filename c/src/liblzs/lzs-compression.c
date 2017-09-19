@@ -150,6 +150,21 @@ static inline lzs_input_hash_t inputs_hash(uint8_t a, uint8_t b)
     return (((lzs_input_hash_t)a << 4u) ^ (lzs_input_hash_t)b) % INPUT_HASH_SIZE;
 }
 
+// Return hash of next two input bytes for incremental compression, modulo INPUT_HASH_SIZE.
+static inline lzs_input_hash_t inputs_hash_inc(const LzsCompressParameters_t * pParams)
+{
+    uint_fast16_t   index0;
+    uint_fast16_t   index1;
+
+    index0 = pParams->historyLatestIdx;
+    index1 = index0 + 1u;
+    if (index1 >= sizeof(pParams->historyBuffer))
+    {
+        index1 = 0;
+    }
+    return inputs_hash(pParams->historyBuffer[index0], pParams->historyBuffer[index1]);
+}
+
 static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, uint_fast8_t matchMax)
 {
     uint_fast8_t    len;
@@ -464,6 +479,20 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
  */
 void lzs_compress_init(LzsCompressParameters_t * pParams)
 {
+#if 0
+    uint16_t        temp16;
+
+    for (temp16 = 0; temp16 < ARRAY_ENTRIES(pParams->hashTable); temp16++)
+    {
+        pParams->hashTable[temp16] = (uint16_t)-1;
+    }
+
+    for (temp16 = 0; temp16 < ARRAY_ENTRIES(pParams->historyHash); temp16++)
+    {
+        pParams->historyHash[temp16] = (uint16_t)-1;
+    }
+#endif
+
     pParams->status = LZS_C_STATUS_NONE;
 
     pParams->lookAheadLen = 0;
@@ -479,11 +508,14 @@ void lzs_compress_init(LzsCompressParameters_t * pParams)
 size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)
 {
     size_t              outCount;           // Count of output bytes that have been generated
+    lzs_input_hash_t    inputHash;
+    uint_fast16_t       historyReadIdx;
     uint_fast16_t       offset;
     uint_fast8_t        matchMax;
     uint_fast8_t        length;
     uint_fast16_t       best_offset;
     uint_fast8_t        best_length;
+    uint_fast16_t       temp16;
     uint_fast8_t        temp8;
 
 
@@ -542,6 +574,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         // Copy that number of bytes from input into look-ahead area of historyBuffer[].
         pParams->lookAheadLen += temp8;
         pParams->inLength -= temp8;
+
         while (temp8--)
         {
             pParams->historyBuffer[pParams->historyLookAheadIdx++] = *pParams->inPtr++;
@@ -573,16 +606,54 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 // Look for a match in history.
                 best_length = 0;
                 matchMax = (pParams->lookAheadLen < LZS_SEARCH_MATCH_MAX) ? pParams->lookAheadLen : LZS_SEARCH_MATCH_MAX;
-                for (offset = 1; offset <= pParams->historyLen; offset++)
+                if (matchMax >= 2u)
                 {
-                    length = lzs_inc_match_len(pParams, offset, matchMax);
-                    if (length > best_length && length >= MIN_LENGTH)
+                    inputHash = inputs_hash_inc(pParams);
+                    historyReadIdx = pParams->hashTable[inputHash];
+                    if (historyReadIdx <= pParams->historyLen)
                     {
-                        best_offset = offset;
-                        best_length = length;
-                        if (length >= LZS_SEARCH_MATCH_MAX)
+                        // Calculate offset from historyReadIdx.
+                        offset = pParams->historyLatestIdx;
+                        if (offset <= historyReadIdx)
                         {
-                            break;
+                            offset += ARRAY_ENTRIES(pParams->historyHash);
+                        }
+                        offset -= historyReadIdx;
+
+                        for ( ; offset <= pParams->historyLen; )
+                        {
+                            length = lzs_inc_match_len(pParams, offset, matchMax);
+                            if (length > best_length && length >= MIN_LENGTH)
+                            {
+                                best_offset = offset;
+                                best_length = length;
+                                if (length >= LZS_SEARCH_MATCH_MAX)
+                                {
+                                    break;
+                                }
+                            }
+
+                            // Get next offset from historyHash[]
+                            // This involves calculating historyReadIdx to index into it.
+                            historyReadIdx = pParams->historyHash[historyReadIdx];
+                            if (historyReadIdx > pParams->historyLen)
+                            {
+                                break;
+                            }
+
+                            // Calculate new offset.
+                            temp16 = pParams->historyLatestIdx;
+                            if (temp16 <= historyReadIdx)
+                            {
+                                temp16 += ARRAY_ENTRIES(pParams->historyHash);
+                            }
+                            temp16 -= historyReadIdx;
+
+                            if (temp16 <= offset)
+                            {
+                                break;
+                            }
+                            offset = temp16;
                         }
                     }
                 }
@@ -669,16 +740,36 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 break;
         }
         // 'length' contains number of input bytes encoded.
-        pParams->historyLatestIdx += length;
-        if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
+        if (pParams->historyLatestIdx)
         {
-            pParams->historyLatestIdx -= sizeof(pParams->historyBuffer);
+            historyReadIdx = pParams->historyLatestIdx - 1u;
         }
+        else
+        {
+            historyReadIdx = sizeof(pParams->historyBuffer) - 1u;
+        }
+        for (temp8 = 0; temp8 < length; temp8++)
+        {
+            inputHash = inputs_hash(pParams->historyBuffer[historyReadIdx],
+                                    pParams->historyBuffer[pParams->historyLatestIdx]);
+
+            temp16 = pParams->hashTable[inputHash];
+            pParams->hashTable[inputHash] = pParams->historyLatestIdx;
+            pParams->historyHash[pParams->historyLatestIdx] = temp16;
+
+            pParams->historyLatestIdx++;
+            if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
+            {
+                pParams->historyLatestIdx = 0;
+            }
+        }
+
         pParams->historyLen += length;
         if (pParams->historyLen > LZS_MAX_HISTORY_SIZE)
         {
             pParams->historyLen = LZS_MAX_HISTORY_SIZE;
         }
+
         pParams->lookAheadLen -= length;
     }
 
