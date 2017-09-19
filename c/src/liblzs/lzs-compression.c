@@ -168,7 +168,7 @@ static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, 
 
     // This relies on calculation overflows wrapping as expected --
     // true as long as ints are unsigned.
-    if (offset > pParams->historyLatestIdx)
+    if (pParams->historyLatestIdx < offset)
     {
         // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
         offset -= sizeof(pParams->historyBuffer);
@@ -449,14 +449,14 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
             }
         }
 
-        // Try to fill inSearchBuffer
+        // Try to fill look-ahead buffer in history buffer
         temp8 = LZS_MAX_LOOK_AHEAD_LEN - pParams->lookAheadLen;
         if (temp8 > pParams->inLength)
         {
             temp8 = pParams->inLength;
         }
-        // temp8 holds number of bytes that can be copied from input to inSearchBuffer[].
-        // Copy that number of bytes from input into inSearchBuffer[].
+        // temp8 holds number of bytes that can be copied from input to look-ahead area of historyBuffer[].
+        // Copy that number of bytes from input into look-ahead area of historyBuffer[].
         pParams->lookAheadLen += temp8;
         pParams->inLength -= temp8;
         while (temp8--)
