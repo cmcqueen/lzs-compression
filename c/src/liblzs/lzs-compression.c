@@ -245,6 +245,23 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     SimpleCompressState_t state;
 
 
+#if 0
+    for (temp16 = 0; temp16 < ARRAY_ENTRIES(hashTable); temp16++)
+    {
+        hashTable[temp16] = (uint16_t)-1;
+    }
+
+    historyLen = ARRAY_ENTRIES(historyHash);
+    if (historyLen > a_inLen)
+    {
+        historyLen = a_inLen;
+    }
+    for (temp16 = 0; temp16 < historyLen; temp16++)
+    {
+        historyHash[temp16] = (uint16_t)-1;
+    }
+#endif
+
     historyLen = 0;
     bitFieldQueue = 0;
     bitFieldQueueLen = 0;
@@ -254,17 +271,6 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     inRemaining = a_inLen;
     outCount = 0;
     state = COMPRESS_NORMAL;
-
-#if 0
-    for (temp16 = 0; temp16 < ARRAY_ENTRIES(hashTable); temp16++)
-    {
-        hashTable[temp16] = (uint16_t)-1;
-    }
-    for (temp16 = 0; temp16 < ARRAY_ENTRIES(historyHash); temp16++)
-    {
-        historyHash[temp16] = (uint16_t)-1;
-    }
-#endif
 
     for (;;)
     {
@@ -295,7 +301,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 {
                     inputHash = inputs_hash(*inPtr, *(inPtr + 1));
                     historyReadIdx = hashTable[inputHash];
-                    if (historyReadIdx <= ARRAY_ENTRIES(historyHash))
+                    if (historyReadIdx <= historyLen)
                     {
                         offset = historyLatestIdx;
                         if (offset <= historyReadIdx)
@@ -323,6 +329,10 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                                 historyReadIdx += ARRAY_ENTRIES(historyHash);
                             }
                             historyReadIdx -= offset;
+                            if (historyReadIdx > historyLen)
+                            {
+                                break;
+                            }
 
                             temp16 = historyHash[historyReadIdx];
                             if (temp16 == 0 || temp16 > LZS_MAX_HISTORY_SIZE)
