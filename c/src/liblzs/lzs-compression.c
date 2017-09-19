@@ -286,6 +286,8 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                                 }
                             }
 
+                            // Get next offset from historyHash[]
+                            // This involves calculating historyReadIdx to index into it.
                             historyReadIdx = lzs_idx_dec_wrap(historyLatestIdx, offset, ARRAY_ENTRIES(historyHash));
                             if (historyReadIdx > historyLen)
                             {
