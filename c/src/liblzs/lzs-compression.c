@@ -63,8 +63,6 @@
 #define EXTENDED_LENGTH_BITS        4u
 #define BIT_QUEUE_BITS              32u
 
-#define NORMAL_SEARCH_LEN           ((LZS_SEARCH_MATCH_MAX < MAX_SHORT_LENGTH) ? LZS_SEARCH_MATCH_MAX : MAX_SHORT_LENGTH)
-
 #define SHORT_OFFSET_MAX            ((1u << SHORT_OFFSET_BITS) - 1u)
 #define LONG_OFFSET_MAX             ((1u << LONG_OFFSET_BITS) - 1u)
 
@@ -478,7 +476,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 }
                 else
                 {
-                    matchMax = NORMAL_SEARCH_LEN;
+                    matchMax = LZS_SEARCH_MATCH_MAX;
                 }
                 if (pParams->lookAheadLen < matchMax)
                 {
