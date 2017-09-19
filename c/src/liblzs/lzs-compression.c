@@ -86,8 +86,6 @@
 #error LZS_MAX_LOOK_AHEAD_LEN is too small
 #endif
 
-#define INPUT_HASH_SIZE             (1u << 12u)
-
 #define ARRAY_ENTRIES(a)            (sizeof(a)/sizeof((a)[0]))
 
 
@@ -100,8 +98,6 @@ typedef enum
     COMPRESS_NORMAL,
     COMPRESS_EXTENDED
 } SimpleCompressState_t;
-
-typedef uint16_t    input_hash_t;
 
 
 /*****************************************************************************
@@ -149,9 +145,9 @@ static const uint8_t length_width[MAX_SHORT_LENGTH + 1u] =
  ****************************************************************************/
 
 // Return hash of two input bytes, modulo INPUT_HASH_SIZE.
-static inline input_hash_t inputs_hash(uint8_t a, uint8_t b)
+static inline lzs_input_hash_t inputs_hash(uint8_t a, uint8_t b)
 {
-    return (((input_hash_t)a << 4u) ^ (input_hash_t)b) % INPUT_HASH_SIZE;
+    return (((lzs_input_hash_t)a << 4u) ^ (lzs_input_hash_t)b) % INPUT_HASH_SIZE;
 }
 
 static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, uint_fast8_t matchMax)
@@ -231,7 +227,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     size_t              inRemaining;        // Count of remaining bytes of input
     size_t              outCount;           // Count of output bytes that have been generated
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left.
-    input_hash_t        inputHash;
+    lzs_input_hash_t    inputHash;
     uint_fast8_t        bitFieldQueueLen;
     uint_fast16_t       historyReadIdx;
     uint_fast16_t       historyLatestIdx;
@@ -303,6 +299,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     historyReadIdx = hashTable[inputHash];
                     if (historyReadIdx <= historyLen)
                     {
+                        // Calculate offset from historyReadIdx.
                         offset = historyLatestIdx;
                         if (offset <= historyReadIdx)
                         {
