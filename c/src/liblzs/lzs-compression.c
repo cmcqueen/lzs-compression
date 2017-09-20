@@ -44,6 +44,7 @@
  ****************************************************************************/
 
 #include "lzs.h"
+#include "lzs-common.h"
 
 #include <stdint.h>
 
@@ -260,7 +261,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             case COMPRESS_NORMAL:
                 /* Look for a match in history */
                 best_length = 0;
-                matchMax = (inRemaining < LZS_SEARCH_MATCH_MAX) ? inRemaining : LZS_SEARCH_MATCH_MAX;
+                matchMax = LZSMIN(inRemaining, LZS_SEARCH_MATCH_MAX);
                 for (offset = 1; offset <= historyLen; offset++)
                 {
                     length = lzs_match_len(inPtr, inPtr - offset, matchMax);
@@ -314,7 +315,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                         bitFieldQueueLen += (1u + LONG_OFFSET_BITS);
                     }
                     /* Encode length */
-                    length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
+                    length = LZSMIN(best_length, MAX_SHORT_LENGTH);
                     LZS_DEBUG(("Length %"PRIuFAST8"\n", length));
                     temp8 = length_width[length];
                     bitFieldQueue <<= temp8;
@@ -328,7 +329,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 }
                 break;
             case COMPRESS_EXTENDED:
-                matchMax = (inRemaining < MAX_EXTENDED_LENGTH) ? inRemaining : MAX_EXTENDED_LENGTH;
+                matchMax = LZSMIN(inRemaining, MAX_EXTENDED_LENGTH);
                 length = lzs_match_len(inPtr, inPtr - best_offset, matchMax);
                 LZS_DEBUG(("Extended length %"PRIuFAST8"\n", length));
 
@@ -487,7 +488,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
 
                 // Look for a match in history.
                 best_length = 0;
-                matchMax = (pParams->lookAheadLen < LZS_SEARCH_MATCH_MAX) ? pParams->lookAheadLen : LZS_SEARCH_MATCH_MAX;
+                matchMax = LZSMIN(pParams->lookAheadLen, LZS_SEARCH_MATCH_MAX);
                 for (offset = 1; offset <= pParams->historyLen; offset++)
                 {
                     length = lzs_inc_match_len(pParams, offset, matchMax);
@@ -542,7 +543,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                         pParams->bitFieldQueueLen += (1u + LONG_OFFSET_BITS);
                     }
                     /* Encode length */
-                    length = (best_length < MAX_SHORT_LENGTH) ? best_length : MAX_SHORT_LENGTH;
+                    length = LZSMIN(best_length, MAX_SHORT_LENGTH);
                     LZS_DEBUG(("Length %"PRIuFAST8"\n", length));
                     temp8 = length_width[length];
                     pParams->bitFieldQueue <<= temp8;
@@ -568,7 +569,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 }
 
                 // Get next length of extended match.
-                matchMax = (pParams->lookAheadLen < MAX_EXTENDED_LENGTH) ? pParams->lookAheadLen : MAX_EXTENDED_LENGTH;
+                matchMax = LZSMIN(pParams->lookAheadLen, MAX_EXTENDED_LENGTH);
                 length = lzs_inc_match_len(pParams, pParams->offset, matchMax);
                 LZS_DEBUG(("Extended length %"PRIuFAST8"\n", length));
 
