@@ -264,7 +264,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 for (offset = 1; offset <= historyLen; offset++)
                 {
                     length = lzs_match_len(inPtr, inPtr - offset, matchMax);
-                    if (length > best_length && length >= MIN_LENGTH)
+                    if (length > best_length)
                     {
                         best_offset = offset;
                         best_length = length;
@@ -275,7 +275,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     }
                 }
                 /* Output */
-                if (best_length == 0)
+                if (best_length < MIN_LENGTH)
                 {
                     /* Byte-literal */
                     /* Leading 0 bit indicates offset/length token.
@@ -476,7 +476,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 for (offset = 1; offset <= pParams->historyLen; offset++)
                 {
                     length = lzs_inc_match_len(pParams, offset, matchMax);
-                    if (length > best_length && length >= MIN_LENGTH)
+                    if (length > best_length)
                     {
                         best_offset = offset;
                         best_length = length;
@@ -487,7 +487,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     }
                 }
                 /* Output */
-                if (best_length == 0)
+                if (best_length < MIN_LENGTH)
                 {
                     /* Byte-literal */
                     /* Leading 0 bit indicates offset/length token.
