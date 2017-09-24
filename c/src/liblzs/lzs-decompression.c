@@ -44,6 +44,7 @@
  ****************************************************************************/
 
 #include "lzs.h"
+#include "lzs-common.h"
 
 #include <stdint.h>
 
@@ -522,18 +523,9 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     // Write to history
                     pParams->historyBuffer[pParams->historyLatestIdx] = temp8;
 
-                    // Increment write index, and wrap if necessary
-                    pParams->historyLatestIdx++;
-                    if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
-                    {
-                        pParams->historyLatestIdx = 0;
-                    }
-
-                    // Increment history size
-                    if (pParams->historyLen < LZS_MAX_HISTORY_SIZE)
-                    {
-                        pParams->historyLen++;
-                    }
+                    pParams->historyLatestIdx = lzs_idx_inc_wrap(pParams->historyLatestIdx, 1u,
+                                                                sizeof(pParams->historyBuffer));
+                    pParams->historyLen = LZSMIN(pParams->historyLen + 1u, LZS_MAX_HISTORY_SIZE);
 
                     pParams->state = DECOMPRESS_GET_TOKEN_TYPE;
                 }
@@ -545,14 +537,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                 temp8 = (pParams->bitFieldQueue & (1u << (BIT_QUEUE_BITS - 1u))) ? 1u : 0;
                 pParams->bitFieldQueue <<= 1u;
                 pParams->bitFieldQueueLen--;
-                if (temp8)
-                {
-                    pParams->state = DECOMPRESS_GET_OFFSET_SHORT;
-                }
-                else
-                {
-                    pParams->state = DECOMPRESS_GET_OFFSET_LONG;
-                }
+                pParams->state = temp8 ? DECOMPRESS_GET_OFFSET_SHORT : DECOMPRESS_GET_OFFSET_LONG;
                 break;
 
             case DECOMPRESS_GET_OFFSET_SHORT:
@@ -651,14 +636,8 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     // Do some offset calculations before beginning to copy
                     offset = pParams->offset;
                     LZS_ASSERT(offset <= sizeof(pParams->historyBuffer));
-                    // This relies on calculation overflows wrapping as expected --
-                    // true as long as ints are unsigned.
-                    if (offset > pParams->historyLatestIdx)
-                    {
-                        // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
-                        offset -= sizeof(pParams->historyBuffer);
-                    }
-                    pParams->historyReadIdx = pParams->historyLatestIdx - offset;
+                    pParams->historyReadIdx = lzs_idx_dec_wrap(pParams->historyLatestIdx, offset,
+                                                                sizeof(pParams->historyBuffer));
                     //LZS_DEBUG(("(%"PRIuFAST16", %"PRIuFAST8")\n", offset, pParams->length));
                 }
                 break;
@@ -697,12 +676,8 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                         temp8 = 0;
                     }
 
-                    // Increment read index, and wrap if necessary
-                    pParams->historyReadIdx++;
-                    if (pParams->historyReadIdx >= sizeof(pParams->historyBuffer))
-                    {
-                        pParams->historyReadIdx = 0;
-                    }
+                    pParams->historyReadIdx = lzs_idx_inc_wrap(pParams->historyReadIdx, 1u,
+                                                                sizeof(pParams->historyBuffer));
 
                     // Write to output
                     *pParams->outPtr++ = temp8;
@@ -713,18 +688,9 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     // Write to history
                     pParams->historyBuffer[pParams->historyLatestIdx] = temp8;
 
-                    // Increment write index, and wrap if necessary
-                    pParams->historyLatestIdx++;
-                    if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
-                    {
-                        pParams->historyLatestIdx = 0;
-                    }
-
-                    // Increment history size
-                    if (pParams->historyLen < LZS_MAX_HISTORY_SIZE)
-                    {
-                        pParams->historyLen++;
-                    }
+                    pParams->historyLatestIdx = lzs_idx_inc_wrap(pParams->historyLatestIdx, 1u,
+                                                                sizeof(pParams->historyBuffer));
+                    pParams->historyLen = LZSMIN(pParams->historyLen + 1u, LZS_MAX_HISTORY_SIZE);
                 }
                 break;
 
