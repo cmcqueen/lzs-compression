@@ -176,13 +176,12 @@ static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, 
 
     historyLookAheadIdx = pParams->historyLatestIdx;
 
-    for (len = 0; len < matchMax; )
+    for (len = 0; len < matchMax; ++len )
     {
         if (pParams->historyBuffer[historyLookAheadIdx] != pParams->historyBuffer[historyReadIdx])
         {
             return len;
         }
-        ++len;
 
         ++historyLookAheadIdx;
         if (historyLookAheadIdx >= sizeof(pParams->historyBuffer))
@@ -269,7 +268,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                     {
                         best_offset = offset;
                         best_length = length;
-                        if (length >= LZS_SEARCH_MATCH_MAX)
+                        if (length >= matchMax)
                         {
                             break;
                         }
@@ -349,11 +348,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
         inPtr += length;
         inRemaining -= length;
 
-        historyLen += length;
-        if (historyLen > LZS_MAX_HISTORY_SIZE)
-        {
-            historyLen = LZS_MAX_HISTORY_SIZE;
-        }
+        historyLen = LZSMIN(historyLen + length, LZS_MAX_HISTORY_SIZE);
     }
     /* Make end marker, which is like a short offset with value 0, padded out
      * with 0 to 7 extra zeros to reach a byte boundary. That is,
@@ -449,11 +444,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         }
 
         // Try to fill look-ahead buffer in history buffer
-        temp8 = LZS_MAX_LOOK_AHEAD_LEN - pParams->lookAheadLen;
-        if (temp8 > pParams->inLength)
-        {
-            temp8 = pParams->inLength;
-        }
+        temp8 = LZSMIN(LZS_MAX_LOOK_AHEAD_LEN - pParams->lookAheadLen, pParams->inLength);
         // temp8 holds number of bytes that can be copied from input to look-ahead area of historyBuffer[].
         // Copy that number of bytes from input into look-ahead area of historyBuffer[].
         pParams->lookAheadLen += temp8;
@@ -471,14 +462,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         switch (pParams->state)
         {
             case COMPRESS_NORMAL:
-                if (add_end_marker)
-                {
-                    matchMax = 1;
-                }
-                else
-                {
-                    matchMax = LZS_SEARCH_MATCH_MAX;
-                }
+                matchMax = add_end_marker ? 1u : LZS_SEARCH_MATCH_MAX;
                 if (pParams->lookAheadLen < matchMax)
                 {
                     // We don't have enough input data, so we're done for now.
@@ -496,7 +480,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                     {
                         best_offset = offset;
                         best_length = length;
-                        if (length >= LZS_SEARCH_MATCH_MAX)
+                        if (length >= matchMax)
                         {
                             break;
                         }
@@ -590,11 +574,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         {
             pParams->historyLatestIdx -= sizeof(pParams->historyBuffer);
         }
-        pParams->historyLen += length;
-        if (pParams->historyLen > LZS_MAX_HISTORY_SIZE)
-        {
-            pParams->historyLen = LZS_MAX_HISTORY_SIZE;
-        }
+        pParams->historyLen = LZSMIN(pParams->historyLen + length, LZS_MAX_HISTORY_SIZE);
         pParams->lookAheadLen -= length;
     }
 
