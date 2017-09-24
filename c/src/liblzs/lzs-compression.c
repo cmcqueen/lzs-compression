@@ -165,15 +165,8 @@ static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, 
     uint_fast8_t    len;
 
 
-    // This relies on calculation overflows wrapping as expected --
-    // true as long as ints are unsigned.
-    if (pParams->historyLatestIdx < offset)
-    {
-        // This relies on two overflows of uint (during the two subtractions) cancelling out to a sensible value
-        offset -= sizeof(pParams->historyBuffer);
-    }
-    historyReadIdx = pParams->historyLatestIdx - offset;
-
+    historyReadIdx = lzs_idx_dec_wrap(pParams->historyLatestIdx, offset,
+                                        sizeof(pParams->historyBuffer));
     historyLookAheadIdx = pParams->historyLatestIdx;
 
     for (len = 0; len < matchMax; ++len )
@@ -182,18 +175,10 @@ static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, 
         {
             return len;
         }
-
-        ++historyLookAheadIdx;
-        if (historyLookAheadIdx >= sizeof(pParams->historyBuffer))
-        {
-            historyLookAheadIdx = 0;
-        }
-
-        ++historyReadIdx;
-        if (historyReadIdx >= sizeof(pParams->historyBuffer))
-        {
-            historyReadIdx = 0;
-        }
+        historyLookAheadIdx = lzs_idx_inc_wrap(historyLookAheadIdx, 1u,
+                                                sizeof(pParams->historyBuffer));
+        historyReadIdx = lzs_idx_inc_wrap(historyReadIdx, 1u,
+                                                sizeof(pParams->historyBuffer));
     }
     return len;
 }
@@ -451,11 +436,9 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         pParams->inLength -= temp8;
         while (temp8--)
         {
-            pParams->historyBuffer[pParams->historyLookAheadIdx++] = *pParams->inPtr++;
-            if (pParams->historyLookAheadIdx >= sizeof(pParams->historyBuffer))
-            {
-                pParams->historyLookAheadIdx = 0;
-            }
+            pParams->historyBuffer[pParams->historyLookAheadIdx] = *pParams->inPtr++;
+            pParams->historyLookAheadIdx = lzs_idx_inc_wrap(pParams->historyLookAheadIdx, 1u,
+                                                            sizeof(pParams->historyBuffer));
         }
 
         // Process input data in a state machine
@@ -569,11 +552,8 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 break;
         }
         // 'length' contains number of input bytes encoded.
-        pParams->historyLatestIdx += length;
-        if (pParams->historyLatestIdx >= sizeof(pParams->historyBuffer))
-        {
-            pParams->historyLatestIdx -= sizeof(pParams->historyBuffer);
-        }
+        pParams->historyLatestIdx = lzs_idx_inc_wrap(pParams->historyLatestIdx, length,
+                                                    sizeof(pParams->historyBuffer));
         pParams->historyLen = LZSMIN(pParams->historyLen + length, LZS_MAX_HISTORY_SIZE);
         pParams->lookAheadLen -= length;
     }

@@ -38,4 +38,36 @@
 #define LZSMIN(X,Y)                 (((X) < (Y)) ? (X) : (Y))
 
 
+/*****************************************************************************
+ * Inline Functions
+ ****************************************************************************/
+
+static inline uint_fast16_t lzs_idx_inc_wrap(uint_fast16_t idx, uint_fast16_t inc, uint_fast16_t array_size)
+{
+    uint_fast16_t new_idx;
+
+    new_idx = idx + inc;
+    if (new_idx >= array_size)
+    {
+        new_idx -= array_size;
+    }
+    return new_idx;
+}
+
+static inline uint_fast16_t lzs_idx_dec_wrap(uint_fast16_t idx, uint_fast16_t dec, uint_fast16_t array_size)
+{
+    uint_fast16_t new_idx;
+
+    // This relies on calculation overflows wrapping as expected --
+    // true as long as ints are unsigned.
+    if (idx < dec)
+    {
+        // This relies on two overflows of uint (during the two subtractions) canceling out to a sensible value.
+        dec -= array_size;
+    }
+    new_idx = idx - dec;
+    return new_idx;
+}
+
+
 #endif // !defined(__LZS_COMMON_H)
