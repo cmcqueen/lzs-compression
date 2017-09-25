@@ -514,6 +514,17 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         temp8 = LZSMIN(LZS_MAX_LOOK_AHEAD_LEN - pParams->lookAheadLen, pParams->inLength);
         // temp8 holds number of bytes that can be copied from input to look-ahead area of historyBuffer[].
         // Copy that number of bytes from input into look-ahead area of historyBuffer[].
+        if (pParams->lookAheadLen == 0 && temp8)
+        {
+            historyReadIdx = lzs_idx_dec_wrap(pParams->historyLatestIdx, 1u,
+                                                sizeof(pParams->historyBuffer));
+            inputHash = inputs_hash(pParams->historyBuffer[historyReadIdx],
+                                    pParams->historyBuffer[pParams->historyLatestIdx]);
+
+            temp16 = pParams->hashTable[inputHash];
+            pParams->hashTable[inputHash] = historyReadIdx;
+            pParams->historyHash[historyReadIdx] = temp16;
+        }
         pParams->lookAheadLen += temp8;
         pParams->inLength -= temp8;
 
@@ -664,24 +675,24 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 break;
         }
         // 'length' contains number of input bytes encoded.
-        historyReadIdx = lzs_idx_dec_wrap(pParams->historyLatestIdx, 1u,
-                                                    sizeof(pParams->historyBuffer));
         for (temp8 = 0; temp8 < length; temp8++)
         {
-            inputHash = inputs_hash(pParams->historyBuffer[historyReadIdx],
-                                    pParams->historyBuffer[pParams->historyLatestIdx]);
+            historyReadIdx = lzs_idx_inc_wrap(pParams->historyLatestIdx, 1u,
+                                                sizeof(pParams->historyBuffer));
+            pParams->lookAheadLen--;
+            if (pParams->lookAheadLen)
+            {
+                inputHash = inputs_hash(pParams->historyBuffer[pParams->historyLatestIdx],
+                                        pParams->historyBuffer[historyReadIdx]);
 
-            temp16 = pParams->hashTable[inputHash];
-            pParams->hashTable[inputHash] = pParams->historyLatestIdx;
-            pParams->historyHash[pParams->historyLatestIdx] = temp16;
-
-            pParams->historyLatestIdx = lzs_idx_inc_wrap(pParams->historyLatestIdx, 1u,
-                                                        sizeof(pParams->historyBuffer));
+                temp16 = pParams->hashTable[inputHash];
+                pParams->hashTable[inputHash] = pParams->historyLatestIdx;
+                pParams->historyHash[pParams->historyLatestIdx] = temp16;
+            }
+            pParams->historyLatestIdx = historyReadIdx;
         }
 
         pParams->historyLen = LZSMIN(pParams->historyLen + length, LZS_MAX_HISTORY_SIZE);
-
-        pParams->lookAheadLen -= length;
     }
 
     if (add_end_marker &&
