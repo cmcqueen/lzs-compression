@@ -82,5 +82,16 @@ static inline uint_fast16_t lzs_idx_dec_wrap(uint_fast16_t idx, uint_fast16_t de
     return idx - dec;
 }
 
+static inline uint_fast16_t lzs_idx_delta_wrap(uint_fast16_t idx1, uint_fast16_t idx2, uint_fast16_t array_size)
+{
+    // This relies on calculation overflows wrapping as expected --
+    // true as long as ints are unsigned.
+    if (idx1 < idx2)
+    {
+        idx1 += array_size;
+    }
+    return idx1 - idx2;
+}
+
 
 #endif // !defined(__LZS_COMMON_H)
