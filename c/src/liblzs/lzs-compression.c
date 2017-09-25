@@ -390,9 +390,8 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             inputHash = inputs_hash(*inPtr, *(inPtr + 1));
             inPtr++;
 
-            temp16 = hashTable[inputHash];
+            historyHash[historyLatestIdx] = hashTable[inputHash];
             hashTable[inputHash] = historyLatestIdx;
-            historyHash[historyLatestIdx] = temp16;
             historyLatestIdx = lzs_idx_inc_wrap(historyLatestIdx, 1u, ARRAY_ENTRIES(historyHash));
         }
 
@@ -522,9 +521,8 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
             inputHash = inputs_hash(pParams->historyBuffer[historyReadIdx],
                                     *pParams->inPtr);
 
-            temp16 = pParams->hashTable[inputHash];
+            pParams->historyHash[historyReadIdx] = pParams->hashTable[inputHash];
             pParams->hashTable[inputHash] = historyReadIdx;
-            pParams->historyHash[historyReadIdx] = temp16;
         }
         pParams->lookAheadLen += temp8;
         pParams->inLength -= temp8;
@@ -686,9 +684,8 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 inputHash = inputs_hash(pParams->historyBuffer[pParams->historyLatestIdx],
                                         pParams->historyBuffer[historyReadIdx]);
 
-                temp16 = pParams->hashTable[inputHash];
+                pParams->historyHash[pParams->historyLatestIdx] = pParams->hashTable[inputHash];
                 pParams->hashTable[inputHash] = pParams->historyLatestIdx;
-                pParams->historyHash[pParams->historyLatestIdx] = temp16;
             }
             pParams->historyLatestIdx = historyReadIdx;
         }
