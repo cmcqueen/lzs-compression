@@ -59,23 +59,6 @@
  * Defines
  ****************************************************************************/
 
-#define SHORT_OFFSET_BITS           7u
-#define LONG_OFFSET_BITS            11u
-#define EXTENDED_LENGTH_BITS        4u
-#define BIT_QUEUE_BITS              32u
-
-#define SHORT_OFFSET_MAX            ((1u << SHORT_OFFSET_BITS) - 1u)
-#define LONG_OFFSET_MAX             ((1u << LONG_OFFSET_BITS) - 1u)
-
-#if (LZS_MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
-#error LZS_MAX_HISTORY_SIZE is too small
-#endif
-
-#define LENGTH_MAX_BIT_WIDTH        4u
-#define MIN_LENGTH                  2u
-#define MAX_SHORT_LENGTH            8u
-#define MAX_EXTENDED_LENGTH         ((1u << EXTENDED_LENGTH_BITS) - 1u)
-
 #define LZS_SEARCH_MATCH_MAX        12u
 
 //#define LZS_DEBUG(X)                printf X

@@ -57,18 +57,6 @@
  * Defines
  ****************************************************************************/
 
-#define SHORT_OFFSET_BITS           7u
-#define LONG_OFFSET_BITS            11u
-#define BIT_QUEUE_BITS              32u
-
-#if (LZS_MAX_HISTORY_SIZE < ((1u << LONG_OFFSET_BITS) - 1u))
-#error LZS_MAX_HISTORY_SIZE is too small
-#endif
-
-#define LENGTH_MAX_BIT_WIDTH        4u
-#define MAX_INITIAL_LENGTH          8u      // keep in sync with lengthDecodeTable[]
-#define MAX_EXTENDED_LENGTH         15u
-
 #define LENGTH_DECODE_METHOD_CODE   0
 #define LENGTH_DECODE_METHOD_TABLE  1u
 // Choose which method to use
@@ -128,7 +116,7 @@ static const uint8_t lengthDecodeTable[(1u << LENGTH_MAX_BIT_WIDTH)] =
     0x22, 0x22, 0x22, 0x22,     // 0b00 --> 2
     0x32, 0x32, 0x32, 0x32,     // 0b01 --> 3
     0x42, 0x42, 0x42, 0x42,     // 0b10 --> 4
-    0x54, 0x64, 0x74, 0x84,     // 0b11xy --> 5, 6, 7, and also 8 (see MAX_INITIAL_LENGTH) which goes into extended lengths
+    0x54, 0x64, 0x74, 0x84,     // 0b11xy --> 5, 6, 7, and also 8 (see MAX_SHORT_LENGTH) which goes into extended lengths
 };
 #endif
 
@@ -340,7 +328,7 @@ size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_
                         }
                         bitFieldQueue <<= temp8;
                         bitFieldQueueLen -= temp8;
-                        if (length == MAX_INITIAL_LENGTH)
+                        if (length == MAX_SHORT_LENGTH)
                         {
                             // We must go into extended length decode mode
                             state = DECOMPRESS_EXTENDED;
@@ -623,7 +611,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
                     LZS_DEBUG(("Length %"PRIuFAST8"\n", pParams->length));
                     pParams->bitFieldQueue <<= temp8;
                     pParams->bitFieldQueueLen -= temp8;
-                    if (pParams->length == MAX_INITIAL_LENGTH)
+                    if (pParams->length == MAX_SHORT_LENGTH)
                     {
                         // We must go into extended length decode mode
                         pParams->state = DECOMPRESS_COPY_EXTENDED_DATA;
