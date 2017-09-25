@@ -421,10 +421,34 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
 
 /*
  * \brief Initialise incremental compression
+ *
+ * This does not initialise the hash tables. The algorithm can still operate
+ * correctly regardless of what uninitialised data might be in the hash tables,
+ * but execution time would vary depending on the contents of the data in the
+ * hash tables.
  */
-void lzs_compress_init(LzsCompressParameters_t * pParams)
+void lzs_compress_init_quick(LzsCompressParameters_t * pParams)
 {
-#if 0
+    pParams->status = LZS_C_STATUS_NONE;
+
+    pParams->lookAheadLen = 0;
+    pParams->bitFieldQueue = 0;
+    pParams->bitFieldQueueLen = 0;
+    pParams->state = COMPRESS_NORMAL;
+    pParams->historyLatestIdx = 0;
+    pParams->historyLookAheadIdx = 0;
+    pParams->historyLen = 0;
+    pParams->offset = 0;
+}
+
+/*
+ * \brief Initialise incremental compression
+ *
+ * This fully initialises the hash tables, for deterministic operation.
+ * However, it is slower to run, because initialising large tables takes time.
+ */
+void lzs_compress_init_full(LzsCompressParameters_t * pParams)
+{
     uint16_t        temp16;
 
     for (temp16 = 0; temp16 < ARRAY_ENTRIES(pParams->hashTable); temp16++)
@@ -436,18 +460,8 @@ void lzs_compress_init(LzsCompressParameters_t * pParams)
     {
         pParams->historyHash[temp16] = (uint16_t)-1;
     }
-#endif
 
-    pParams->status = LZS_C_STATUS_NONE;
-
-    pParams->lookAheadLen = 0;
-    pParams->bitFieldQueue = 0;
-    pParams->bitFieldQueueLen = 0;
-    pParams->state = COMPRESS_NORMAL;
-    pParams->historyLatestIdx = 0;
-    pParams->historyLookAheadIdx = 0;
-    pParams->historyLen = 0;
-    pParams->offset = 0;
+    lzs_compress_init_quick(pParams);
 }
 
 size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)

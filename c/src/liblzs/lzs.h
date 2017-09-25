@@ -216,13 +216,29 @@ typedef struct
 
 size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen);
 
-void lzs_compress_init(LzsCompressParameters_t * pParams);
+void lzs_compress_init_quick(LzsCompressParameters_t * pParams);
+void lzs_compress_init_full(LzsCompressParameters_t * pParams);
 size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker);
+
+size_t lzs_simple_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen);
+
+void lzs_simple_compress_init(LzsSimpleCompressParameters_t * pParams);
+size_t lzs_simple_compress_incremental(LzsSimpleCompressParameters_t * pParams, bool add_end_marker);
 
 size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen);
 
 void lzs_decompress_init(LzsDecompressParameters_t * pParams);
 size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams);
+
+
+/*****************************************************************************
+ * Inline functions
+ ****************************************************************************/
+
+static inline void lzs_compress_init(LzsCompressParameters_t * pParams)
+{
+    lzs_compress_init_quick(pParams);
+}
 
 
 #endif // !defined(__LZS_H)
