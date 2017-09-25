@@ -280,7 +280,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 {
                     inputHash = inputs_hash(*inPtr, *(inPtr + 1));
                     historyReadIdx = hashTable[inputHash];
-                    if (historyReadIdx <= historyLen)
+                    if (historyReadIdx < historyLen)
                     {
                         offset = lzs_idx_delta2_wrap(historyLatestIdx, historyReadIdx, ARRAY_ENTRIES(historyHash));
 
@@ -300,7 +300,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                             // Get next offset from historyHash[]
                             // This involves calculating historyReadIdx to index into it.
                             historyReadIdx = historyHash[historyReadIdx];
-                            if (historyReadIdx > historyLen)
+                            if (historyReadIdx >= historyLen)
                             {
                                 break;
                             }
@@ -554,7 +554,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 {
                     inputHash = inputs_hash_inc(pParams);
                     historyReadIdx = pParams->hashTable[inputHash];
-                    if (historyReadIdx <= pParams->historyLen)
+                    if (historyReadIdx < pParams->historyLen)
                     {
                         // Calculate offset from historyReadIdx.
                         offset = lzs_idx_delta2_wrap(pParams->historyLatestIdx, historyReadIdx,
@@ -576,7 +576,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                             // Get next offset from historyHash[]
                             // This involves calculating historyReadIdx to index into it.
                             historyReadIdx = pParams->historyHash[historyReadIdx];
-                            if (historyReadIdx > pParams->historyLen)
+                            if (historyReadIdx >= pParams->historyLen)
                             {
                                 break;
                             }
