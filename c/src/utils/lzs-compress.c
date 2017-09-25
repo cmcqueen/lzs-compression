@@ -22,21 +22,38 @@
 
 
 /*****************************************************************************
+ * Defines
+ ****************************************************************************/
+
+#define LZS_USE_INCREMENTAL         1
+#define LZS_USE_SIMPLE_ALGORITHM    0
+
+#define INCREMENTAL_INPUT_SIZE      16
+#define INCREMENTAL_OUTPUT_SIZE     16
+
+
+/*****************************************************************************
  * Functions
  ****************************************************************************/
 
-#if 1
+#if LZS_USE_INCREMENTAL
 
-// Use lzs_compress_incremental()
+/*
+ * Use incremental version of the compression algorithm.
+ */
 int main(int argc, char **argv)
 {
     int in_fd;
     int out_fd;
     ssize_t read_len;
     ssize_t write_len;
-    uint8_t in_buffer[16];
-    uint8_t out_buffer[16];
-    LzsCompressParameters_t compress_params;
+    uint8_t in_buffer[INCREMENTAL_INPUT_SIZE];
+    uint8_t out_buffer[INCREMENTAL_OUTPUT_SIZE];
+#if LZS_USE_SIMPLE_ALGORITHM
+    LzsSimpleCompressParameters_t   compress_params;
+#else
+    LzsCompressParameters_t         compress_params;
+#endif
     size_t  out_length;
     bool    finish = false;
 
@@ -59,7 +76,11 @@ int main(int argc, char **argv)
     }
 
     // Initialise
+#if LZS_USE_SIMPLE_ALGORITHM
+    lzs_simple_compress_init(&compress_params);
+#else
     lzs_compress_init(&compress_params);
+#endif
 
     // Compress bounded by input buffer size
     compress_params.inPtr = in_buffer;
@@ -88,7 +109,11 @@ int main(int argc, char **argv)
             finish = true;
         }
 
+#if LZS_USE_SIMPLE_ALGORITHM
+        out_length = lzs_simple_compress_incremental(&compress_params, finish);
+#else
         out_length = lzs_compress_incremental(&compress_params, finish);
+#endif
         if (out_length)
         {
             write_len = write(out_fd, compress_params.outPtr - out_length, out_length);
@@ -113,6 +138,12 @@ int main(int argc, char **argv)
 
 #else
 
+/*
+ * Use single-call version of the compression algorithm.
+ *
+ * The whole of the source data must be loaded into memory as a single buffer.
+ * The output also goes into a single output buffer in memory.
+ */
 int main(int argc, char **argv)
 {
     int in_fd;

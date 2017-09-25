@@ -22,20 +22,34 @@
 
 
 /*****************************************************************************
+ * Defines
+ ****************************************************************************/
+
+#define LZS_USE_INCREMENTAL         1
+
+#define INCREMENTAL_INPUT_SIZE      16
+#define INCREMENTAL_OUTPUT_SIZE     16
+
+
+/*****************************************************************************
  * Functions
  ****************************************************************************/
 
-#if 1
+#if LZS_USE_INCREMENTAL
 
-// Use lzs_decompress_incremental()
+/*
+ * Use incremental version of the decompression algorithm.
+ *
+ * The data is input and output in chunks.
+ */
 int main(int argc, char **argv)
 {
     int in_fd;
     int out_fd;
     ssize_t read_len;
     ssize_t write_len;
-    uint8_t in_buffer[16];
-    uint8_t out_buffer[16];
+    uint8_t in_buffer[INCREMENTAL_INPUT_SIZE];
+    uint8_t out_buffer[INCREMENTAL_OUTPUT_SIZE];
     LzsDecompressParameters_t   decompress_params;
     size_t  out_length;
 
@@ -111,7 +125,12 @@ int main(int argc, char **argv)
 
 #else
 
-// Use lzs_decompress()
+/*
+ * Use single-call version of the decompression algorithm.
+ *
+ * The whole of the source data must be loaded into memory as a single buffer.
+ * The output also goes into a single output buffer in memory.
+ */
 int main(int argc, char **argv)
 {
     int in_fd;

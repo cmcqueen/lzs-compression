@@ -132,6 +132,39 @@ typedef struct
     uint8_t             state;              // LzsCompressState_t
 } LzsCompressParameters_t;
 
+typedef struct
+{
+    /*
+     * These parameters should be set (as needed) each time prior to calling compress_incremental().
+     * Then, they are updated appropriately by compress_incremental(), according to
+     * what happens during the compression process.
+     */
+    const uint8_t     * inPtr;              // On entry, points to input data. On exit, points to first unprocessed input data
+    uint8_t           * outPtr;             // On entry, point to output data buffer. On exit, points to one past the last output data byte
+    size_t              inLength;           // On entry, set this to the length of the input data. On exit, it is the length of unprocessed data
+    size_t              outLength;          // On entry, set this to the space in the output buffer. On exit, decremented by the number of output bytes generated
+
+   /*
+    * status is one or more flags of LzsCompressStatus_t.
+    * status is updated appropriately by compress_incremental(), according to
+    * what happens during the compression process.
+    */
+    uint8_t             status;
+
+    /*
+     * These are private members, and should not be changed.
+     */
+    uint8_t             historyBuffer[LZS_COMPRESS_HISTORY_SIZE];
+    uint8_t             lookAheadLen;
+    uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
+    uint8_t             bitFieldQueueLen;   // Number of bits in the queue
+    uint16_t            historyLatestIdx;
+    uint16_t            historyLookAheadIdx;
+    uint16_t            historyLen;
+    uint16_t            offset;
+    uint8_t             state;              // LzsCompressState_t
+} LzsSimpleCompressParameters_t;
+
 
 typedef enum
 {
