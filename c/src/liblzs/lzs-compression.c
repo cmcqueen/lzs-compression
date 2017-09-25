@@ -291,7 +291,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                             {
                                 best_offset = offset;
                                 best_length = length;
-                                if (length >= LZS_SEARCH_MATCH_MAX)
+                                if (length >= matchMax)
                                 {
                                     break;
                                 }
@@ -384,7 +384,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
                 break;
         }
         // 'length' contains number of input bytes encoded.
-        // Update inPtr and inRemaining accordingly.
+        // Update inPtr, inRemaining and hash tables accordingly.
         for (temp8 = 0; temp8 < length; temp8++)
         {
             inputHash = inputs_hash(*inPtr, *(inPtr + 1));
@@ -393,12 +393,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
             temp16 = hashTable[inputHash];
             hashTable[inputHash] = historyLatestIdx;
             historyHash[historyLatestIdx] = temp16;
-
-            historyLatestIdx++;
-            if (historyLatestIdx >= ARRAY_ENTRIES(historyHash))
-            {
-                historyLatestIdx = 0;
-            }
+            historyLatestIdx = lzs_idx_inc_wrap(historyLatestIdx, 1u, ARRAY_ENTRIES(historyHash));
         }
 
         inRemaining -= length;
