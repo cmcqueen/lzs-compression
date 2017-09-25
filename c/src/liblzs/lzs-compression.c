@@ -553,7 +553,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                 {
                     inputHash = inputs_hash_inc(pParams);
                     historyReadIdx = pParams->hashTable[inputHash];
-                    if (historyReadIdx < pParams->historyLen)
+                    if (historyReadIdx < ARRAY_ENTRIES(pParams->historyBuffer))
                     {
                         // Calculate offset from historyReadIdx.
                         offset = lzs_idx_delta2_wrap(pParams->historyLatestIdx, historyReadIdx,
@@ -575,7 +575,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
                             // Get next offset from historyHash[]
                             // This involves calculating historyReadIdx to index into it.
                             historyReadIdx = pParams->historyHash[historyReadIdx];
-                            if (historyReadIdx >= pParams->historyLen)
+                            if (historyReadIdx >= ARRAY_ENTRIES(pParams->historyBuffer))
                             {
                                 break;
                             }
