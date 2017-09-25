@@ -237,7 +237,7 @@ size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams);
 
 static inline void lzs_compress_init(LzsCompressParameters_t * pParams)
 {
-    lzs_compress_init_quick(pParams);
+    lzs_compress_init_full(pParams);
 }
 
 
