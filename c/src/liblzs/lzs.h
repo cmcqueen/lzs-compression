@@ -121,7 +121,7 @@ typedef struct
      */
     uint8_t             historyBuffer[LZS_COMPRESS_HISTORY_SIZE];
     uint16_t            historyHash[LZS_COMPRESS_HISTORY_SIZE];
-    uint8_t             hashTable[INPUT_HASH_SIZE];
+    uint16_t            hashTable[INPUT_HASH_SIZE];
     uint8_t             lookAheadLen;
     uint32_t            bitFieldQueue;      // Code assumes bits will disappear past MS-bit 31 when shifted left
     uint8_t             bitFieldQueueLen;   // Number of bits in the queue

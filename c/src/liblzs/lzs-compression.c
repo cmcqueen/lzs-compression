@@ -513,13 +513,14 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         // Try to fill look-ahead buffer in history buffer
         temp8 = LZSMIN(LZS_MAX_LOOK_AHEAD_LEN - pParams->lookAheadLen, pParams->inLength);
         // temp8 holds number of bytes that can be copied from input to look-ahead area of historyBuffer[].
-        // Copy that number of bytes from input into look-ahead area of historyBuffer[].
-        if (pParams->lookAheadLen == 0 && temp8)
+        // Copy 'temp8' bytes from input into look-ahead area of historyBuffer[].
+        // But before that, update the last entry of the hash tables if needed.
+        if (pParams->lookAheadLen == 0 && pParams->historyLen && temp8)
         {
             historyReadIdx = lzs_idx_dec_wrap(pParams->historyLatestIdx, 1u,
                                                 sizeof(pParams->historyBuffer));
             inputHash = inputs_hash(pParams->historyBuffer[historyReadIdx],
-                                    pParams->historyBuffer[pParams->historyLatestIdx]);
+                                    *pParams->inPtr);
 
             temp16 = pParams->hashTable[inputHash];
             pParams->hashTable[inputHash] = historyReadIdx;
@@ -527,7 +528,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         }
         pParams->lookAheadLen += temp8;
         pParams->inLength -= temp8;
-
+        // Copy 'temp8' bytes from input into look-ahead area of historyBuffer[].
         while (temp8--)
         {
             pParams->historyBuffer[pParams->historyLookAheadIdx] = *pParams->inPtr++;
