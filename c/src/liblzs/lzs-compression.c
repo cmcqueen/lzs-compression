@@ -225,6 +225,7 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
 
 
 #if 0
+    // TODO: Do initialisation of hash tables for consistency.
     for (temp16 = 0; temp16 < ARRAY_ENTRIES(hashTable); temp16++)
     {
         hashTable[temp16] = (uint16_t)-1;
@@ -712,6 +713,7 @@ size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_
         pParams->state == COMPRESS_NORMAL &&
         pParams->lookAheadLen == 0 &&
         pParams->bitFieldQueueLen < 8u &&
+        // TODO: The following imposes a minimum output buffer size of 3. Can this be improved?
         pParams->outLength >= (pParams->bitFieldQueueLen + 2u + SHORT_OFFSET_BITS + 7u) / 8u)
     {
         /* Make end marker, which is like a short offset with value 0, padded out
