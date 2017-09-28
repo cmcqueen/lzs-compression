@@ -28,8 +28,8 @@
 #define LZS_USE_INCREMENTAL         1
 #define LZS_USE_SIMPLE_ALGORITHM    0
 
-#define INCREMENTAL_INPUT_SIZE      16
-#define INCREMENTAL_OUTPUT_SIZE     16
+#define INCREMENTAL_INPUT_SIZE      512
+#define INCREMENTAL_OUTPUT_SIZE     512
 
 
 /*****************************************************************************
