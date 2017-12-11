@@ -22,6 +22,7 @@ static void compress_decompress_incremental()
     compress_params.outLength = sizeof(out_buffer);
 
     size_t out_size = lzs_compress_incremental(&compress_params, true);
+    printf("Compress status %02X\n", compress_params.status);
 
     char dec_buffer[1024];
 
@@ -34,6 +35,7 @@ static void compress_decompress_incremental()
     decompress_params.outLength = sizeof(dec_buffer);
 
     size_t dec_size = lzs_decompress_incremental(&decompress_params);
+    printf("Decompress status %02X\n", decompress_params.status);
     //dec_buffer[dec_size] = 0;
 
     printf("Decompressed data \n%s\n", dec_buffer);
