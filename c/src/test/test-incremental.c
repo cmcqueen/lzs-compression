@@ -14,6 +14,8 @@ static void compress_decompress_incremental()
 
     uint8_t out_buffer[1024];
     LzsCompressParameters_t     compress_params;
+    size_t out_size = 0;
+
     lzs_compress_init(&compress_params);
 
     compress_params.inPtr = (const uint8_t*)in_buffer;
@@ -21,8 +23,15 @@ static void compress_decompress_incremental()
     compress_params.outPtr = out_buffer;
     compress_params.outLength = sizeof(out_buffer);
 
-    size_t out_size = lzs_compress_incremental(&compress_params, true);
-    printf("Compress status %02X\n", compress_params.status);
+    for (;;)
+    {
+        out_size += lzs_compress_incremental(&compress_params, true);
+        printf("Compress status %02X\n", compress_params.status);
+        if (compress_params.status & LZS_C_STATUS_END_MARKER)
+        {
+            break;
+        }
+    }
 
     char dec_buffer[1024];
 
