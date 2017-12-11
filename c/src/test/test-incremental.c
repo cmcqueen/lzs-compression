@@ -38,7 +38,7 @@ static void compress_decompress_incremental()
     printf("Decompress status %02X\n", decompress_params.status);
     //dec_buffer[dec_size] = 0;
 
-    printf("Decompressed data \n%s\n", dec_buffer);
+    printf("Decompressed data \n%.*s\n", dec_size, dec_buffer);
 }
 
 int main()
