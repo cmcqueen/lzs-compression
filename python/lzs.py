@@ -35,7 +35,7 @@ import sys
 from collections import defaultdict
 
 
-if sys.version_info.major == 2:
+if sys.version_info[0] == 2:
     byteschr = chr
 else:
     def byteschr(x):
