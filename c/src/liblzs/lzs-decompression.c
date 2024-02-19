@@ -139,12 +139,19 @@ static const uint_fast8_t StateBitMinimumWidth[NUM_DECOMPRESS_STATES] =
  * Functions
  ****************************************************************************/
 
-/*
- * Single-call decompression
+/**
+ * \brief Single-call decompression
  *
  * No state is kept between calls. Decompression is expected to complete in a single call.
  * It will stop if/when it reaches the end of either the input or the output buffer,
  * or when it reaches an end-marker.
+ *
+ * \param a_pOutData: Pointer to destination buffer for decompressed data.
+ * \param a_outBufferSize: Size, in bytes, of the destination buffer.
+ * \param a_pInData: Pointer to source buffer of compressed data.
+ * \param a_inLen: Size, in bytes, of compressed source data.
+ *
+ * \return size_t: Number of bytes of decompressed data written to the destination buffer.
  */
 size_t lzs_decompress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
 {
@@ -405,8 +412,10 @@ finish:
 }
 
 
-/*
+/**
  * \brief Initialise incremental decompression
+ *
+ * \param pParams: Pointer to struct to store incremental decompression state.
  */
 void lzs_decompress_init(LzsDecompressParameters_t * pParams)
 {
@@ -419,7 +428,7 @@ void lzs_decompress_init(LzsDecompressParameters_t * pParams)
 }
 
 
-/*
+/**
  * \brief Incremental decompression
  *
  * State is kept between calls, so decompression can be done gradually, and flexibly
@@ -427,6 +436,25 @@ void lzs_decompress_init(LzsDecompressParameters_t * pParams)
  *
  * It will stop if/when it reaches the end of either the input or the output buffer.
  * It will also stop if/when it reaches an end marker.
+ *
+ * \param pParams: Pointer to struct to store incremental decompression state.
+ *
+ * Before calling this function, these state variables must be set appropriately:
+ *
+ *     - pParams->inPtr     point to the compressed source data.
+ *     - pParams->inLength  set to the length of the source data (bytes).
+ *     - pParams->outPtr    point to the output buffer to store decompressed data.
+ *     - pParams->outLength set to the length of the output buffer (bytes).
+ *
+ * After calling this function:
+ *
+ *     - pParams->status    LzsDecompressStatus_t flags indicate various exit status of the function.
+ *     - pParams->inPtr     points to just after the compressed source data that was read.
+ *     - pParams->inLength  is decremented by the length of the source data that was read (bytes).
+ *     - pParams->outPtr    points to just after the output data that was written to the output buffer.
+ *     - pParams->outLength is decremented by the length of the output data that was written to the buffer (bytes).
+ *
+ * \return size_t: Number of bytes of decompressed data written to the destination buffer.
  */
 size_t lzs_decompress_incremental(LzsDecompressParameters_t * pParams)
 {

@@ -194,11 +194,18 @@ static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, 
  * Functions
  ****************************************************************************/
 
-/*
- * Single-call compression
+/**
+ * \brief Single-call compression
  *
  * No state is kept between calls. Compression is expected to complete in a single call.
  * It will stop if/when it reaches the end of either the input or the output buffer.
+ *
+ * \param a_pOutData: Pointer to destination buffer for compressed data.
+ * \param a_outBufferSize: Size, in bytes, of the destination buffer.
+ * \param a_pInData: Pointer to source buffer of data to be compressed.
+ * \param a_inLen: Size, in bytes, of source data.
+ *
+ * \return size_t: Number of bytes of compressed data written to the destination buffer.
  */
 size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t * a_pInData, size_t a_inLen)
 {
@@ -420,13 +427,15 @@ size_t lzs_compress(uint8_t * a_pOutData, size_t a_outBufferSize, const uint8_t 
     return outCount;
 }
 
-/*
- * \brief Initialise incremental compression
+/**
+ * \brief Initialise incremental compression, excluding hash tables
  *
  * This does not initialise the hash tables. The algorithm can still operate
  * correctly regardless of what uninitialised data might be in the hash tables,
  * but execution time would vary depending on the contents of the data in the
  * hash tables.
+ *
+ * \param pParams: Pointer to struct to store incremental compression state.
  */
 void lzs_compress_init_quick(LzsCompressParameters_t * pParams)
 {
@@ -442,11 +451,13 @@ void lzs_compress_init_quick(LzsCompressParameters_t * pParams)
     pParams->offset = 0;
 }
 
-/*
- * \brief Initialise incremental compression
+/**
+ * \brief Initialise incremental compression, including hash tables
  *
  * This fully initialises the hash tables, for deterministic operation.
  * However, it is slower to run, because initialising large tables takes time.
+ *
+ * \param pParams: Pointer to struct to store incremental compression state.
  */
 void lzs_compress_init_full(LzsCompressParameters_t * pParams)
 {
@@ -465,6 +476,41 @@ void lzs_compress_init_full(LzsCompressParameters_t * pParams)
     lzs_compress_init_quick(pParams);
 }
 
+/**
+ * \brief Incremental compression
+ *
+ * State is kept between calls, so compression can be done gradually, and flexibly
+ * depending on the application's needs for input/output buffer handling.
+ *
+ * It will stop if/when it reaches the end of either the input or the output buffer.
+ * It will also stop if/when it generates an end marker, as specified by `add_end_marker` parameter.
+ * Setting `add_end_marker` to `true` doesn't guarantee an end marker will be appended; it depends
+ * on whether there is enough output buffer space to complete compression of all the input data,
+ * and then add the end marker. After the call, check pParams->status and whether the
+ * LZS_C_STATUS_END_MARKER flag was set. If not, it is necessary to call the function again with
+ * enough free space in the output buffer for any remaining compressed data followed by the end
+ * marker.
+ *
+ * \param pParams: Pointer to struct to store incremental compression state.
+ * \param add_end_marker: true to append an end-marker to output after all input & output data is processed.
+ *
+ * Before calling this function, these state variables must be set appropriately:
+ *
+ *     - pParams->inPtr     point to the source data.
+ *     - pParams->inLength  set to the length of the source data (bytes).
+ *     - pParams->outPtr    point to the output buffer to store compressed data.
+ *     - pParams->outLength set to the length of the output buffer (bytes).
+ *
+ * After calling this function:
+ *
+ *     - pParams->status    LzsCompressStatus_t flags indicate various exit status of the function.
+ *     - pParams->inPtr     points to just after the source data that was read.
+ *     - pParams->inLength  is decremented by the length of the source data that was read (bytes).
+ *     - pParams->outPtr    points to just after the compressed output data that was written to the output buffer.
+ *     - pParams->outLength is decremented by the length of the output data that was written to the buffer (bytes).
+ *
+ * \return size_t: Number of bytes of compressed data written to the destination buffer.
+ */
 size_t lzs_compress_incremental(LzsCompressParameters_t * pParams, bool add_end_marker)
 {
     size_t              outCount;           // Count of output bytes that have been generated

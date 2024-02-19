@@ -59,6 +59,15 @@
  * Inline Functions
  ****************************************************************************/
 
+/**
+ * \brief Increment index into a circular buffer, with wrapping on the buffer size
+ *
+ * \param idx: Initial index value.
+ * \param inc: Amount to increment the index by.
+ * \param array_size: Size of array to store the circular buffer.
+ *
+ * \return uint_fast16_t Index value that has been incremented with wrapping.
+ */
 static inline uint_fast16_t lzs_idx_inc_wrap(uint_fast16_t idx, uint_fast16_t inc, uint_fast16_t array_size)
 {
     uint_fast16_t new_idx;
@@ -71,6 +80,15 @@ static inline uint_fast16_t lzs_idx_inc_wrap(uint_fast16_t idx, uint_fast16_t in
     return new_idx;
 }
 
+/**
+ * \brief Decrement index into a circular buffer, with wrapping on the buffer size
+ *
+ * \param idx: Initial index value.
+ * \param inc: Amount to decrement the index by.
+ * \param array_size: Size of array to store the circular buffer.
+ *
+ * \return uint_fast16_t Index value that has been decremented with wrapping.
+ */
 static inline uint_fast16_t lzs_idx_dec_wrap(uint_fast16_t idx, uint_fast16_t dec, uint_fast16_t array_size)
 {
     // This relies on calculation overflows wrapping as expected --
@@ -82,6 +100,18 @@ static inline uint_fast16_t lzs_idx_dec_wrap(uint_fast16_t idx, uint_fast16_t de
     return idx - dec;
 }
 
+/**
+ * \brief Calculate the difference between two index values into a circular buffer, with wrapping on the buffer size
+ *
+ * If idx1 == idx2, return value is zero.
+ * See also `lzs_idx_delta2_wrap()` which handles this differently.
+ *
+ * \param idx1: First index value.
+ * \param idx2: Second index value.
+ * \param array_size: Size of array to store the circular buffer.
+ *
+ * \return uint_fast16_t Difference between index values, idx1 - idx2, with wrapping.
+ */
 static inline uint_fast16_t lzs_idx_delta_wrap(uint_fast16_t idx1, uint_fast16_t idx2, uint_fast16_t array_size)
 {
     // This relies on calculation overflows wrapping as expected --
@@ -93,7 +123,18 @@ static inline uint_fast16_t lzs_idx_delta_wrap(uint_fast16_t idx1, uint_fast16_t
     return idx1 - idx2;
 }
 
-// Like the above, except that if idx1 == idx2, return value is array_size not zero.
+/**
+ * \brief Calculate the difference between two index values into a circular buffer, with wrapping on the buffer size
+ *
+ * If idx1 == idx2, return value is array_size, rather than zero.
+ * See also `lzs_idx_delta_wrap()` which handles this differently.
+ *
+ * \param idx1: First index value.
+ * \param idx2: Second index value.
+ * \param array_size: Size of array to store the circular buffer.
+ *
+ * \return uint_fast16_t Difference between index values, idx1 - idx2, with wrapping.
+ */
 static inline uint_fast16_t lzs_idx_delta2_wrap(uint_fast16_t idx1, uint_fast16_t idx2, uint_fast16_t array_size)
 {
     // This relies on calculation overflows wrapping as expected --

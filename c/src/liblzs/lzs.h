@@ -90,11 +90,12 @@ typedef uint16_t    lzs_input_hash_t;
 typedef enum
 {
     LZS_C_STATUS_NONE                   = 0x00,
-    LZS_C_STATUS_INPUT_STARVED          = 0x01,
-    LZS_C_STATUS_INPUT_FINISHED         = 0x02,
-    LZS_C_STATUS_END_MARKER             = 0x04,
-    LZS_C_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08,
-    LZS_C_STATUS_ERROR                  = 0x10
+    LZS_C_STATUS_INPUT_STARVED          = 0x01, // All available input has been read.
+                                                // (Same as LZS_C_STATUS_INPUT_FINISHED; this flag exists just for symmetry with LzsDecompressStatus_t.)
+    LZS_C_STATUS_INPUT_FINISHED         = 0x02, // All available input has been read.
+    LZS_C_STATUS_END_MARKER             = 0x04, // The output contains an end-marker.
+    LZS_C_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08, // There is no more space left in the output buffer.
+    LZS_C_STATUS_ERROR                  = 0x10  // An error occurred in the compression.
 } LzsCompressStatus_t;
 
 typedef struct
@@ -169,11 +170,11 @@ typedef struct
 typedef enum
 {
     LZS_D_STATUS_NONE                   = 0x00,
-    LZS_D_STATUS_INPUT_STARVED          = 0x01,
-    LZS_D_STATUS_INPUT_FINISHED         = 0x02,
-    LZS_D_STATUS_END_MARKER             = 0x04,
-    LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08,
-    LZS_D_STATUS_ERROR                  = 0x10
+    LZS_D_STATUS_INPUT_STARVED          = 0x01, // All available input has been read; there are unprocessed input bits in the pipeline.
+    LZS_D_STATUS_INPUT_FINISHED         = 0x02, // All available input has been read.
+    LZS_D_STATUS_END_MARKER             = 0x04, // The input contained an end-marker.
+    LZS_D_STATUS_NO_OUTPUT_BUFFER_SPACE = 0x08, // There is no more space left in the output buffer.
+    LZS_D_STATUS_ERROR                  = 0x10  // An error occurred in the decompression.
 } LzsDecompressStatus_t;
 
 typedef struct
