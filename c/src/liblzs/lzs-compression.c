@@ -128,13 +128,28 @@ static const uint8_t length_width[MAX_SHORT_LENGTH + 1u] =
  * Inline Functions
  ****************************************************************************/
 
-// Return hash of two input bytes, modulo INPUT_HASH_SIZE.
+/**
+ * \brief Return hash of two input bytes, modulo INPUT_HASH_SIZE.
+ *
+ * \param a: Input byte
+ * \param b: Input byte
+ *
+ * \return A simple hash of the two input bytes
+ */
 static inline lzs_input_hash_t inputs_hash(uint8_t a, uint8_t b)
 {
     return (((lzs_input_hash_t)a << 4u) ^ (lzs_input_hash_t)b) % INPUT_HASH_SIZE;
 }
 
-// Return hash of next two input bytes for incremental compression, modulo INPUT_HASH_SIZE.
+/**
+ * \brief Return hash of next two input bytes for incremental compression, modulo INPUT_HASH_SIZE.
+ *
+ * The next two input bytes are in the look-ahead buffer in the incremental compression state.
+ *
+ * \param pParams: Pointer to struct to store incremental compression state.
+ *
+ * \return A simple hash of the next two input bytes.
+ */
 static inline lzs_input_hash_t inputs_hash_inc(const LzsCompressParameters_t * pParams)
 {
     uint_fast16_t   index0;
@@ -149,6 +164,17 @@ static inline lzs_input_hash_t inputs_hash_inc(const LzsCompressParameters_t * p
     return inputs_hash(pParams->historyBuffer[index0], pParams->historyBuffer[index1]);
 }
 
+/**
+ * \brief Count the length of the match betwen two data blocks, up to a maximum match length
+ *
+ * This doesn't do any circular buffer wrapping.
+ *
+ * \param aPtr: Pointer to 1st data block.
+ * \param bPtr: Pointer to 2nd data block.
+ * \param matchMax: Maximum match length to count.
+ *
+ * \return uint_fast8_t: Length of consecutive matching bytes between the two data blocks.
+ */
 static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, uint_fast8_t matchMax)
 {
     uint_fast8_t    len;
@@ -164,6 +190,19 @@ static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * b
     return len;
 }
 
+/**
+ * \brief Count the length of the match betwen the next input bytes and a point in the history.
+ *
+ * Length is counted up to a maximum match length.
+ *
+ * This does wrapping of the indices into the history buffer.
+ *
+ * \param pParams: Pointer to struct to store incremental compression state.
+ * \param offset: Reverse offset into the history buffer.
+ * \param matchMax: Maximum match length to count.
+ *
+ * \return uint_fast8_t: Length of consecutive matching bytes between the input and history.
+ */
 static inline uint_fast8_t lzs_inc_match_len(LzsCompressParameters_t * pParams, uint_fast16_t offset, uint_fast8_t matchMax)
 {
     uint_fast16_t   historyReadIdx;

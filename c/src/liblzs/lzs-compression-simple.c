@@ -126,6 +126,17 @@ static const uint8_t length_width[MAX_SHORT_LENGTH + 1u] =
  * Inline Functions
  ****************************************************************************/
 
+/**
+ * \brief Count the length of the match betwen two data blocks, up to a maximum match length
+ *
+ * This doesn't do any circular buffer wrapping.
+ *
+ * \param aPtr: Pointer to 1st data block.
+ * \param bPtr: Pointer to 2nd data block.
+ * \param matchMax: Maximum match length to count.
+ *
+ * \return uint_fast8_t: Length of consecutive matching bytes between the two data blocks.
+ */
 static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * bPtr, uint_fast8_t matchMax)
 {
     uint_fast8_t    len;
@@ -141,6 +152,19 @@ static inline uint_fast8_t lzs_match_len(const uint8_t * aPtr, const uint8_t * b
     return len;
 }
 
+/**
+ * \brief Count the length of the match betwen the next input bytes and a point in the history.
+ *
+ * Length is counted up to a maximum match length.
+ *
+ * This does wrapping of the indices into the history buffer.
+ *
+ * \param pParams: Pointer to struct to store incremental compression state.
+ * \param offset: Reverse offset into the history buffer.
+ * \param matchMax: Maximum match length to count.
+ *
+ * \return uint_fast8_t: Length of consecutive matching bytes between the input and history.
+ */
 static inline uint_fast8_t lzs_inc_match_len(LzsSimpleCompressParameters_t * pParams, uint_fast16_t offset, uint_fast8_t matchMax)
 {
     uint_fast16_t   historyReadIdx;
